@@ -1,0 +1,16 @@
+# SwiftPM
+.build/
+
+# Build output
+dist/
+*.dmg
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+
+# macOS
+.DS_Store
+__pycache__/

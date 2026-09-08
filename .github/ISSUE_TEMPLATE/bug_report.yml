@@ -1,0 +1,65 @@
+name: Bug report / 问题反馈
+description: Something is broken or behaving unexpectedly / 功能异常或行为不符合预期
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please fill in as much as you can — a reproducible case is the
+        fastest path to a fix.
+        感谢反馈。请尽量填写完整，能复现的问题修得最快。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened / 现象
+      description: What did you see, and what did you expect instead?
+      placeholder: The sticker froze after the Mac woke from sleep...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      placeholder: |
+        1. Add a GIF to the desktop
+        2. Set behaviour to "screen bounce"
+        3. Close the lid for 10 minutes
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: MemeDesk version / 版本
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version / macOS 版本
+      placeholder: macOS 14.5 (23F79)
+    validations:
+      required: true
+
+  - type: input
+    id: media
+    attributes:
+      label: Sticker format / 素材格式
+      description: GIF, APNG, MP4 ... and roughly how many stickers were on the desktop.
+      placeholder: GIF, 3 stickers
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / 日志
+      description: Any relevant output from Console.app, filtered by "MemeDesk".
+      render: shell
+    validations:
+      required: false

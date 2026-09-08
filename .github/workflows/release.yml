@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build (e.g. v1.0.0)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        run: swift build -c release
+
+      - name: Assemble app bundle
+        run: ./Scripts/build.sh
+
+      - name: Package DMG
+        run: ./Scripts/make_dmg.sh
+
+      - name: Collect release notes
+        run: |
+          # 只取 CHANGELOG 里最新的一段，标题去掉版本号方块
+          awk 'BEGIN{on=0} /^## \[/{if (on) exit; on=1} on{print}' CHANGELOG.md \
+            | sed -e '1s/^## \[[^]]*\] - /## /' > release_notes.md
+          cat release_notes.md
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: MemeDesk ${{ steps.version.outputs.tag }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: true
+          files: |
+            dist/*.dmg
