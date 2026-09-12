@@ -13,6 +13,8 @@
 
 GIF / APNG / 静态图 / MP4 / MOV · 多开 · 不占 Dock · 中英双语
 
+<img src="Docs/demo.gif" width="306" alt="MemeDesk 桌面表情包演示">
+
 </div>
 
 ---
@@ -41,7 +43,7 @@ GIF / APNG / 静态图 / MP4 / MOV · 多开 · 不占 Dock · 中英双语
 
 > 产物为 ad-hoc 签名。首次启动若被 Gatekeeper 拦下，右键 App 选择「打开」。
 
-想自己构建（只需 Xcode Command Line Tools）：
+想自己构建（需要**完整 Xcode**，只有 Command Line Tools 编译不了 SwiftUI）：
 
 ```bash
 xcode-select --install          # 已安装可跳过
@@ -107,7 +109,7 @@ Finder 里显示的、菜单栏里点到的、欢迎页看到的，永远是同�
 ## 环境要求
 
 - macOS 13 Ventura 及以上
-- 源码构建需要 Xcode Command Line Tools
+- 源码构建需要完整 Xcode（仅 Command Line Tools 会因缺少 SwiftUI 宏插件而编译失败）
 
 ## 许可证
 

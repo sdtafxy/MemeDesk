@@ -11,6 +11,8 @@
 
 GIF / APNG / still images / MP4 / MOV · any number at once · no Dock icon · bilingual
 
+<img src="Docs/demo.gif" width="306" alt="MemeDesk stickers looping on the desktop">
+
 </div>
 
 ---
@@ -47,7 +49,8 @@ into Applications.
 > The build is ad-hoc signed. If Gatekeeper complains on first launch, right-click the app and
 > choose **Open**.
 
-Build it yourself (Xcode Command Line Tools only):
+Build it yourself (needs the **full Xcode**; the Command Line Tools alone cannot compile
+SwiftUI because they ship without its macro plugin):
 
 ```bash
 xcode-select --install          # skip if already installed
@@ -124,7 +127,7 @@ window all show the same face.
 ## Requirements
 
 - macOS 13 Ventura or later
-- Xcode Command Line Tools to build from source
+- The full Xcode to build from source (the Command Line Tools alone lack the SwiftUI macro plugin)
 
 ## License
 

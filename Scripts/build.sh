@@ -7,6 +7,16 @@
 # Output: dist/MemeDesk.app
 set -euo pipefail
 
+# 只装了 Xcode Command Line Tools 时，SwiftUI 的宏插件（libSwiftUIMacros.dylib）
+# 不在编译器搜索路径里，构建会报 "plugin for module 'SwiftUIMacros' not found"。
+# 若本机装了完整 Xcode，就把开发者目录切过去 —— 不用 sudo 改系统设置。
+if [ -z "${DEVELOPER_DIR:-}" ] \
+   && [ "$(xcode-select -p 2>/dev/null || true)" = "/Library/Developer/CommandLineTools" ] \
+   && [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+  echo "==> xcode-select 指向 CommandLineTools，改用 $DEVELOPER_DIR"
+fi
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="MemeDesk"
 BUILD_DIR="$ROOT/.build/release"
