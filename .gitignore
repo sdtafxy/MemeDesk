@@ -14,3 +14,6 @@ DerivedData/
 # macOS
 .DS_Store
 __pycache__/
+
+# 本地迁移文档（含真实 Token，禁止提交）
+PROJECT_CONTEXT.md
