@@ -48,7 +48,8 @@ final class StickerWindowController: NSWindowController {
         }
         contentView.onTogglePlay = { [weak self] in self?.togglePlay() }
         contentView.onMenuInteraction = { [weak self] active in
-            self?.stage.setMenuInteraction(active)
+            guard let self else { return }
+            active ? self.beginMenuPresentation() : self.endMenuPresentation()
         }
         installMenu()
 
@@ -340,6 +341,25 @@ final class StickerWindowController: NSWindowController {
         loadTask?.cancel()
         contentView.teardown()
         close()
+    }
+
+    // MARK: - 右键菜单的前后处理
+    //
+    // 1) 冻结运动：菜单锚在屏幕上，窗口一动菜单就"追着人跑"；
+    // 2) 把窗口压到弹出菜单之下，免得"悬浮于一切之上"的素材盖住自己的菜单；
+    // 3) 菜单收起后取消选中 —— 高亮只在"用户正对着这个素材"时才有意义。
+
+    private func beginMenuPresentation() {
+        stage.setMenuInteraction(true)
+        stickerWindow.setMenuPresentation(true)
+    }
+
+    private func endMenuPresentation() {
+        stickerWindow.setMenuPresentation(false)
+        stage.setMenuInteraction(false)
+        // 不要只指望 NSApplication.didResignActiveNotification：走完菜单之后，
+        // 应用的激活状态往往根本没变过，那个通知不触发，蓝框就留在桌面上了。
+        stage.select(nil)
     }
 
     // MARK: - 右键菜单

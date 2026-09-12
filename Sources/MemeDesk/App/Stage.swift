@@ -47,6 +47,8 @@ final class Stage: ObservableObject {
     private var periodicSave: Timer?
     private var prefSink: AnyCancellable?
     private var selectionWatcher: NSObjectProtocol?
+    /// 落在本应用之外的鼠标按下 —— 清空选中用，见 `installSelectionWatcher()`。
+    private var outsideClickMonitor: Any?
 
     private init() {
         // 设置面板改动 → 立刻重新裁决播放策略并落盘
@@ -74,19 +76,45 @@ final class Stage: ObservableObject {
         }
     }
 
-    /// 选中框只在"用户正对着这个素材"时才有意义。
-    /// 只要应用失去焦点（点了桌面、点了别的 App），就立刻取消选中，
-    /// 否则那圈高亮会一直挂在桌面上，看起来像渲染残留。
+    /// 选中框只在"用户正对着这个素材"时才有意义，于是有两条清理路径：
+    ///
+    /// ① 应用失去焦点（点了别的 App / 桌面）—— 传统做法；
+    /// ② **任何落在本应用之外的鼠标按下**。
+    ///
+    /// 只留 ① 是不够的：走完一次右键菜单后，应用的激活状态往往根本没变过，
+    /// `didResignActiveNotification` 自然不触发，那圈高亮就会一直挂在桌面上
+    /// （真机反馈：选完"运动行为"/"图层位置"后点别处，蓝框不消失）。
+    /// ② 不依赖激活状态，行为是确定的。
     private func installSelectionWatcher() {
-        guard selectionWatcher == nil else { return }
-        selectionWatcher = NotificationCenter.default.addObserver(
-            forName: NSApplication.didResignActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            guard let self = self else { return }
-            Task { @MainActor in self.select(nil) }
+        if selectionWatcher == nil {
+            selectionWatcher = NotificationCenter.default.addObserver(
+                forName: NSApplication.didResignActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                guard let self = self else { return }
+                Task { @MainActor in self.clearSelection() }
+            }
         }
+
+        guard outsideClickMonitor == nil else { return }
+        // 全局监听只收"发给别人的"鼠标事件，所以点我们自己的素材不会走到这里，
+        // 那时候由 StickerView.mouseDown 负责选中。鼠标类全局监听不需要辅助功能权限。
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] _ in
+            Task { @MainActor in
+                // 菜单开着的时候不动它，交回给弹出菜单自己的收尾逻辑。
+                guard let self, self.menuInteractionCount == 0 else { return }
+                self.clearSelection()
+            }
+        }
+    }
+
+    /// 只在真有选中时才广播，避免每次点桌面都白跑一圈控制器。
+    private func clearSelection() {
+        guard selectedID != nil else { return }
+        select(nil)
     }
 
     // MARK: - 增删
