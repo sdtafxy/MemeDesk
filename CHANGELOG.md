@@ -4,6 +4,30 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.2] - 2026-09-12
+
+### Fixed
+
+- The selection outline could linger on the desktop after using a sticker's right-click menu —
+  most visibly after picking a motion behaviour or a layer. Clearing it no longer depends on the
+  app losing focus (which often never happens after a menu): the outline now also drops the
+  moment the menu closes, and any click landing outside the app clears it.
+- The right-click menu was hidden behind its own sticker when the layer was set to
+  "floating above everything". A `screenSaver`-level window sits above the pop-up menu, so the
+  sticker is now lowered just below the menu for as long as the menu is open, and restored
+  afterwards.
+
+### Added
+
+- A demo animation on the landing page of both READMEs (`Docs/demo.gif`).
+
+### Changed
+
+- Building from source now documents that it needs the **full Xcode**: SwiftUI's macro plugin
+  (`SwiftUIMacros`) ships only with Xcode, so the Command Line Tools alone cannot compile the
+  UI. `Scripts/build.sh` and the `Makefile` now pick up `/Applications/Xcode.app` automatically
+  when `xcode-select` points at the Command Line Tools.
+
 ## [0.0.1] - 2026-09-08
 
 First public beta. Feedback welcome — please open an issue with your macOS version and steps

@@ -51,6 +51,6 @@ jobs:
           name: MemeDesk ${{ steps.version.outputs.tag }}
           body_path: release_notes.md
           draft: false
-          prerelease: true
+          prerelease: false
           files: |
             dist/*.dmg
