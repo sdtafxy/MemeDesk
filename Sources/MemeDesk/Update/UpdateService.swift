@@ -313,6 +313,11 @@ final class UpdateService: ObservableObject {
                 await MainActor.run {
                     // 先把存档落盘：helper 会等我们退出后立刻动手。
                     Stage.shared.saveNow()
+                    // 兜底强退。helper 在门外等我们消失，一旦退出流程被什么卡住
+                    // （AppKit 的退出流程是可以被卡住的），更新就会永远停在这一步 ——
+                    // 对一个自更新器来说那是最糟的失败方式：用户以为在更新，其实什么也没发生。
+                    // 用 GCD 而不是 Task：主 actor 此刻可能正忙，而 GCD 块在嵌套 runloop 里也能跑。
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
                     NSApp.terminate(nil)
                 }
             } catch {
