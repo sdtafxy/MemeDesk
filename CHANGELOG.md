@@ -4,6 +4,29 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-09-13
+
+### Fixed
+
+- **One animated GIF could pin 30–45% of a CPU core.** Everything showed up inside ImageIO's
+  GIF decoder, so the fix was to stop asking it for work that was not needed. Three separate
+  causes, each measured on the same 4.3 MB / 630×824 / 96-frame GIF:
+  - The decode target was `decodePixelLimit × display scale` (640 px) regardless of how large
+    the sticker actually was, so a 200 pt sticker was decoded at 640 px. Decoding now targets
+    the sticker's real pixel size, with the preference acting as a ceiling.
+  - Reducing by a small factor was *more* expensive than not reducing: ImageIO's thumbnail path
+    decodes the frame in full and then resamples it, so 630×824 → 640 cost twice what 630×824
+    cost. Reductions of less than half now skip the thumbnail path and let the GPU scale.
+  - The frame cache could not hold a whole animation, so every loop re-decoded every frame.
+    When an animation fits in ~96 MB the cache now grows to hold all of it, so each frame is
+    decoded once ever instead of once per loop. The second and third points are coupled — a
+    downscale that looks expensive per frame pays for itself if it makes the animation
+    cacheable — so they are decided together.
+
+  Result: that single GIF went from **43% of a core to 0.4%**, and seven stickers together from
+  **45% to 2.5–3.6%**. Memory for those seven went from ~91 MB to ~146 MB; the cache may hold
+  tens of MB per sticker, with a shared 192 MB ceiling across all of them.
+
 ## [0.1.0] - 2026-09-13
 
 ### Added
