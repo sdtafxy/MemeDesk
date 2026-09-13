@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.setActivationPolicy(.accessory)
             StatusBarController.shared.install()
             Stage.shared.bootstrap()
+            UpdateService.shared.start()
             installKeyboardShortcuts()
             if Stage.shared.count == 0 {
                 try? await Task.sleep(nanoseconds: 700_000_000)

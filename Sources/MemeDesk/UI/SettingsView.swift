@@ -78,6 +78,8 @@ struct SettingsView: View {
                 }
             }
 
+            UpdateSettingsSection()
+
             Section(loc[.about]) {
                 HStack(spacing: 12) {
                     BrandMark(size: 44)

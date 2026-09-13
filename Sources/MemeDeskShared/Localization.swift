@@ -149,6 +149,43 @@ public enum LKey: String, Sendable {
     case kindStill
     case kindVideo
 
+    // 更新
+    case updateSection
+    case updateCurrentVersion
+    case updateAutoCheck
+    case updateAutoInstall
+    case updateCheckNow
+    case updateChecking
+    case updateUpToDate
+    case updateAvailable
+    case updateDownloading
+    case updateReady
+    case updateInstalling
+    case updateInstallNow
+    case updateDownloadNow
+    case updateSkip
+    case updateNotes
+    case updateLastChecked
+    case updateNeverChecked
+    case updateErrorTitle
+    case updateManualHint
+    case updateNotWritable
+    case updateRevealDownload
+    case updateShowLog
+    case updateOpenRelease
+    case updateBadgeTip
+    case updateNoFeed
+    case updateRateLimited
+    case updateBadResponse
+    case updateHTTPError
+    case updateNoArchive
+    case updateChecksumFailed
+    case updateSignatureFailed
+    case updateVerificationUnavailable
+    case updateWrongBundle
+    case updateUnarchiveFailed
+    case updateInstallFailed
+
     var text: (zh: String, en: String) {
         switch self {
         case .followSystem: return ("跟随系统", "Follow System")
@@ -263,6 +300,42 @@ public enum LKey: String, Sendable {
         case .kindAnimated: return ("动图", "Animated")
         case .kindStill: return ("静态图", "Still image")
         case .kindVideo: return ("视频", "Video")
+
+        case .updateSection: return ("更新", "Updates")
+        case .updateCurrentVersion: return ("当前版本 %@", "Current version %@")
+        case .updateAutoCheck: return ("自动检查更新", "Check for updates automatically")
+        case .updateAutoInstall: return ("发现新版本后自动下载并安装", "Download and install updates automatically")
+        case .updateCheckNow: return ("检查更新", "Check Now")
+        case .updateChecking: return ("正在检查…", "Checking…")
+        case .updateUpToDate: return ("已是最新版本", "You're up to date")
+        case .updateAvailable: return ("发现新版本 %@", "Version %@ is available")
+        case .updateDownloading: return ("正在下载… %d%%", "Downloading… %d%%")
+        case .updateReady: return ("已下载并校验通过，可以安装", "Downloaded and verified — ready to install")
+        case .updateInstalling: return ("正在替换 App，马上重启…", "Replacing the app and relaunching…")
+        case .updateInstallNow: return ("立即安装并重启", "Install and Relaunch")
+        case .updateDownloadNow: return ("下载更新", "Download Update")
+        case .updateSkip: return ("忽略此版本", "Skip This Version")
+        case .updateNotes: return ("更新说明", "Release notes")
+        case .updateLastChecked: return ("上次检查 %@", "Last checked %@")
+        case .updateNeverChecked: return ("尚未检查过", "Never checked")
+        case .updateErrorTitle: return ("更新失败", "Update failed")
+        case .updateManualHint: return ("安装会在原地替换 App 本体；桌面布局、素材和设置都存在 App 之外，不受影响。", "Installing replaces the app in place. Your desk layout, stickers and settings live outside the app and are left untouched.")
+        case .updateNotWritable: return ("没有权限替换 App 本体。可以在访达里手动替换，或把 App 移到你有写权限的位置再试。", "No permission to replace the app. Swap it manually in Finder, or move the app somewhere you can write to and try again.")
+        case .updateRevealDownload: return ("在访达中显示", "Reveal in Finder")
+        case .updateShowLog: return ("查看安装日志", "View install log")
+        case .updateOpenRelease: return ("打开 Release 页面", "Open the release page")
+        case .updateBadgeTip: return ("有可用的新版本", "An update is available")
+        case .updateNoFeed: return ("这个构建没有配置更新源", "This build has no update feed configured")
+        case .updateRateLimited: return ("GitHub 接口请求过于频繁，请稍后再试", "GitHub is rate-limiting requests — try again later")
+        case .updateBadResponse: return ("更新信息无法解析", "The update information could not be read")
+        case .updateHTTPError: return ("服务器返回 %d", "The server returned %d")
+        case .updateNoArchive: return ("这个 Release 里没有可用的更新包", "This release has no update archive")
+        case .updateChecksumFailed: return ("更新包校验和不匹配，已丢弃", "The update archive failed its checksum and was discarded")
+        case .updateSignatureFailed: return ("更新包签名无效，已丢弃", "The update archive failed signature verification and was discarded")
+        case .updateVerificationUnavailable: return ("拿不到校验文件，无法确认更新包是否完整", "Could not fetch verification data for the update archive")
+        case .updateWrongBundle: return ("下载到的东西不是 MemeDesk，已丢弃", "The downloaded bundle is not MemeDesk — discarded")
+        case .updateUnarchiveFailed: return ("更新包解压失败", "Could not unpack the update archive")
+        case .updateInstallFailed: return ("安装程序没能启动", "The installer could not be started")
         }
     }
 }

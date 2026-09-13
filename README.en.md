@@ -37,6 +37,8 @@ cursor. They go quiet during full-screen video and rest when the screen locks.
   playback pauses automatically when occluded, on battery, behind a full-screen app or when
   the screen is locked.
 - **Menu bar only** — an `LSUIElement` app; nothing in the Dock or the App Switcher.
+- **Self-updating** — a built-in updater reads GitHub Releases, can check and install on its own
+  or on demand, and replaces the app **in place**, leaving your desk untouched.
 - **Bilingual UI** — English and Simplified Chinese; follows the system by default.
 - **`memedesk://` URL scheme** — script it, bind it to a hotkey, drive it from Raycast or Alfred.
 - **Six bundled samples** — the sticker library ships with ready-made examples, one click to place.
@@ -100,6 +102,28 @@ open "memedesk://clear"                         # clear the desk
   unavailable in this mode.
 - **Above desktop icons** (default) — covers desktop icons, sits under every app window.
 - **Floating above everything** — covers even full-screen video.
+
+## Updates
+
+Settings → Updates:
+
+- **Check for updates automatically** (on by default) — once shortly after launch, then daily.
+- **Download and install updates automatically** (off by default — it restarts the app, so that
+  call is yours).
+- **Check Now** for a one-off manual check.
+- The settings button in the menu bar panel grows an orange dot when a version is waiting.
+
+An update is **verified before anything is installed**: a SHA-256 checksum always, and an Ed25519
+signature too once a public key is configured in `Info.plist`. With a key configured, a missing
+signature is a hard failure rather than a quiet fall back to the checksum alone.
+
+The app then replaces itself in place. Your desk layout, sticker paths and settings live in
+`~/Library/Application Support/MemeDesk/`, outside the app bundle, so they are untouched — the
+app relaunches and your desk comes back exactly as it was.
+
+**About the network**: the updater is the only thing in MemeDesk that talks to the internet. It
+only reaches `api.github.com` and GitHub's release files, and sends nothing about you. Turn off
+automatic checking and it stays silent until you press the button yourself.
 
 ## How it stays light
 

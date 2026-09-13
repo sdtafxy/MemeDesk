@@ -38,6 +38,7 @@ enum PanelMetrics {
 struct MenuBarRootView: View {
     @ObservedObject private var stage = Stage.shared
     @ObservedObject private var loc = Localization.shared
+    @ObservedObject private var update = UpdateService.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -151,7 +152,8 @@ struct MenuBarRootView: View {
                 footerButton(loc[.library], icon: "square.grid.2x2") {
                     Task { @MainActor in LibraryWindow.show() }
                 }
-                footerButton(loc[.settings], icon: "gearshape") {
+                footerButton(loc[.settings], icon: "gearshape",
+                             badge: update.updateAvailable) {
                     Task { @MainActor in SettingsWindow.show() }
                 }
             }
@@ -172,12 +174,24 @@ struct MenuBarRootView: View {
         }
     }
 
+    /// `badge` 只在设置的图标上点一个小圆点表示"有新版"。
+    /// 用 overlay 而不是加一行 —— 面板高度是算术常量（`PanelMetrics`），不能被动到。
     private func footerButton(_ title: String, icon: String,
-                              role: ButtonRole? = nil, action: @escaping () -> Void) -> some View {
+                              role: ButtonRole? = nil,
+                              badge: Bool = false,
+                              action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 3) {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .medium))
+                    .overlay(alignment: .topTrailing) {
+                        if badge {
+                            Circle()
+                                .fill(MD.accent)
+                                .frame(width: 6, height: 6)
+                                .offset(x: 6, y: -2)
+                        }
+                    }
                 Text(title)
                     .font(.system(size: 10.5, weight: .medium))
             }
@@ -185,6 +199,7 @@ struct MenuBarRootView: View {
             .frame(height: 42)
         }
         .buttonStyle(MDIconButtonStyle(role: role))
+        .help(badge ? loc[.updateBadgeTip] : title)
     }
 
     private func addFiles() async {
