@@ -4,6 +4,25 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-09-13
+
+### Fixed
+
+- **The updater hung instead of installing.** `applicationShouldTerminate` returned
+  `.terminateLater` and sent its reply from a `Task { @MainActor in ... }`. That is fine for a
+  ⌘Q, but the updater calls `NSApp.terminate` from inside a main-actor closure — so the reply
+  could never be scheduled, the app never quit, and the helper waiting for it never swapped the
+  bundle. The update appeared to start and then quietly did nothing. The delegate now saves
+  synchronously and returns `.terminateNow`, and the updater arms a hard-exit fallback on the
+  main queue before asking AppKit to quit, because "the app would not quit" is the worst way an
+  updater can fail.
+- Verified end to end afterwards: a 0.1.0 build auto-updated itself to 0.1.1 in place,
+  relaunched, left no backup behind, kept its seven stickers and settings, and the replaced
+  bundle passed `codesign --verify`.
+
+> **0.1.0 and 0.1.1 cannot auto-update** — they carry the hang above. Install 0.1.2 by hand
+> once; from 0.1.2 onward the updater works.
+
 ## [0.1.1] - 2026-09-13
 
 ### Fixed
