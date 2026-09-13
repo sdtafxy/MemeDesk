@@ -4,6 +4,43 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2026-09-13
+
+### Added
+
+- **Built-in updater.** MemeDesk now checks GitHub Releases for a newer version and replaces
+  itself **in place** — no disk image to mount and drag. Settings → Updates has the switches:
+  check automatically (on by default), download and install automatically (off by default,
+  because it restarts the app), plus a manual **Check Now**. A dot appears on the menu bar
+  panel's settings button when a version is waiting.
+- Update archives are verified before anything is installed: a SHA-256 checksum always, and an
+  Ed25519 signature on top of it once a public key is configured (see `Scripts/sign_update.py`).
+  With a key configured a missing signature is a hard failure, never a silent downgrade.
+- Releases now ship `MemeDesk-x.y.z.zip` (+ `.sha256`, and `.ed25519` when the signing secret is
+  set) next to the dmg. The dmg stays for first-time installs.
+
+### Changed
+
+- **`desk.json` no longer breaks when preferences gain a field.** `Preferences` used to rely on
+  synthesised `Codable`, so any unknown/missing key made the whole snapshot fail to decode —
+  and `Stage.load()` swallows that with `try?`, which would have silently wiped the desk layout
+  of anyone upgrading. It now decodes field by field with defaults.
+- Update traffic bypasses the URL cache entirely. `URLCache` applies heuristic freshness from
+  `Last-Modified`, which could serve a stale `.sha256` — a changed archive would then still
+  compare equal, i.e. fail **open**.
+- **"Up to date" is decided by the version number, not by what assets a release happens to
+  carry.** A release that is not newer than the running build used to be reported as a failed
+  check when it had no zip attached. Now the comparison comes first and the missing archive only
+  matters when the release really is newer.
+- **"Last checked" records the attempt, not only the success.** Previously a failed check left
+  the timestamp untouched, so Settings could sit on "Never checked" forever while checks were in
+  fact running.
+- Update checks write to the system log (`subsystem com.memedesk.app`, `category update`), so a
+  failure in the field can actually be diagnosed:
+  `log show --predicate 'subsystem == "com.memedesk.app"' --last 10m --info`
+- Building from source still needs the full Xcode; `make zip` / `make release` join the existing
+  release targets.
+
 ## [0.0.2] - 2026-09-12
 
 ### Fixed
