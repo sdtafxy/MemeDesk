@@ -115,16 +115,12 @@ final class UpdateService: ObservableObject {
     private func scheduleAutoCheck(after delay: TimeInterval) {
         timer?.invalidate()
         let t = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                Self.log.debug("auto-check timer fired (delay \(Int(delay))s)")
-                if Stage.shared.preferences.autoCheckForUpdates {
-                    await self.checkForUpdates(userInitiated: false)
-                } else {
-                    Self.log.notice("auto check is off; skipping")
-                }
-                self.scheduleAutoCheck(after: 24 * 60 * 60)
-            }
+            // 在**外层**就把弱引用解成强引用。
+            // Timer 的 block 是 `@Sendable`，如果改到里面的 `Task` 里再 `guard let self`，
+            // 就变成"在并发执行的代码里引用被捕获的 var"，CI 的编译器会直接报错
+            // （本地 Swift 6.4 在 Swift 5 语言模式下不报，所以这条只有 CI 才发现得了）。
+            guard let service = self else { return }
+            Task { @MainActor in service.autoCheckFired(delay: delay) }
         }
         // 容差要**按延迟比例**给，不能一律 60 秒：
         // Timer 的 tolerance 允许系统把触发时刻往后推，10 秒的首查配上 60 秒容差
@@ -132,6 +128,18 @@ final class UpdateService: ObservableObject {
         t.tolerance = min(delay * 0.1, 60)
         RunLoop.main.add(t, forMode: .common)
         timer = t
+    }
+
+    private func autoCheckFired(delay: TimeInterval) {
+        Self.log.debug("auto-check timer fired (delay \(Int(delay))s)")
+        Task { @MainActor in
+            if Stage.shared.preferences.autoCheckForUpdates {
+                await checkForUpdates(userInitiated: false)
+            } else {
+                Self.log.notice("auto check is off; skipping")
+            }
+            scheduleAutoCheck(after: 24 * 60 * 60)
+        }
     }
 
     // MARK: - 检查
@@ -227,6 +235,12 @@ final class UpdateService: ObservableObject {
 
     // MARK: - 下载
 
+    /// 下载进度回调（从下载器的并发上下文跳回主 actor）。
+    private func reportDownloadProgress(_ fraction: Double) {
+        guard case .downloading = status else { return }
+        status = .downloading(fraction)
+    }
+
     /// 下载并校验。`thenInstall` 为真时，装完直接进入安装流程。
     func download(_ release: ReleaseInfo, thenInstall: Bool) async {
         guard !busy else { return }
@@ -245,10 +259,9 @@ final class UpdateService: ObservableObject {
                 userAgent: userAgent,
                 publicKeyBase64: key,
                 progress: { [weak self] fraction in
-                    Task { @MainActor in
-                        guard let self, case .downloading = self.status else { return }
-                        self.status = .downloading(fraction)
-                    }
+                    // 同上：这个闭包也是 `@Sendable`，弱引用必须在外面解开。
+                    guard let service = self else { return }
+                    Task { @MainActor in service.reportDownloadProgress(fraction) }
                 }
             )
             status = .ready(release)
