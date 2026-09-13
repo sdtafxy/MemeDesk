@@ -37,6 +37,21 @@ jobs:
       - name: Package DMG
         run: ./Scripts/make_dmg.sh
 
+      - name: Package update archive (zip)
+        env:
+          SIGNING_KEY_PEM: ${{ secrets.MEMEDESK_UPDATE_SIGNING_KEY }}
+        run: |
+          # 配了 Ed25519 私钥就顺手签名；没配就只出 zip + sha256。
+          if [ -n "$SIGNING_KEY_PEM" ]; then
+            python3 -m pip install --quiet cryptography
+            printf '%s\n' "$SIGNING_KEY_PEM" > "$RUNNER_TEMP/update-key.pem"
+            export MEMEDESK_UPDATE_SIGNING_KEY="$RUNNER_TEMP/update-key.pem"
+            echo "Signing the update archive."
+          else
+            echo "No MEMEDESK_UPDATE_SIGNING_KEY secret — shipping an unsigned archive."
+          fi
+          ./Scripts/make_zip.sh
+
       - name: Collect release notes
         run: |
           # 只取 CHANGELOG 里最新的一段，标题去掉版本号方块
@@ -54,3 +69,6 @@ jobs:
           prerelease: false
           files: |
             dist/*.dmg
+            dist/*.zip
+            dist/*.sha256
+            dist/*.ed25519

@@ -9,7 +9,7 @@ ifeq ($(origin DEVELOPER_DIR),undefined)
 export DEVELOPER_DIR := $(LOCAL_DEVDIR)
 endif
 
-.PHONY: build app dmg open samples icon install clean
+.PHONY: build app dmg zip release open samples icon install clean
 
 build:
 	swift build -c release
@@ -19,6 +19,14 @@ app:
 
 dmg: app
 	./Scripts/make_dmg.sh
+
+# 更新器用的 zip（+ sha256，配了私钥还会出 .ed25519）
+zip: app
+	./Scripts/make_zip.sh
+
+release: app
+	./Scripts/make_dmg.sh
+	./Scripts/make_zip.sh
 
 open: app
 	open dist/$(APP_NAME).app

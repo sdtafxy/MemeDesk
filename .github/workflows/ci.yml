@@ -26,9 +26,15 @@ jobs:
       - name: Package DMG
         run: ./Scripts/make_dmg.sh
 
+      - name: Package update archive (zip)
+        run: ./Scripts/make_zip.sh
+
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
           name: MemeDesk-dmg
-          path: dist/*.dmg
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.sha256
           if-no-files-found: error
