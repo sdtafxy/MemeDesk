@@ -110,8 +110,15 @@ final class StickerWindowController: NSWindowController {
         case .animatedImage:
             let limit = stage.preferences.decodePixelLimit
             let scale = window?.backingScaleFactor ?? 2
+            // 这个贴纸当前实际占多少像素。把 decodePixelLimit 当**上限**，
+            // 实际按显示尺寸来 —— 否则一个 200pt 的小贴纸也要解 640px 的图，
+            // 解码、色彩转换、纹理上传、内存四样一起浪费。
+            let frameSize = window?.frame.size ?? .zero
+            let displayPixel = Int(max(frameSize.width, frameSize.height) * scale)
             do {
-                let source = try AnimatedImageSource(url: url, targetPixel: Int(Double(limit) * scale))
+                let source = try AnimatedImageSource(url: url,
+                                                     targetPixel: Int(Double(limit) * scale),
+                                                     displayPixel: displayPixel)
                 contentView.configure(animated: source, aspect: aspect)
             } catch {
                 if let fallback = firstFrame(of: url, pixel: limit) {
