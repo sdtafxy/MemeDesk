@@ -23,6 +23,9 @@ struct Preferences: Codable, Equatable {
     var snapToEdges: Bool = true
     /// 视频音轨默认静音 —— 桌面常驻的东西出声通常很吵。
     var videosMutedByDefault: Bool = true
+    /// 菜单栏按钮的图案（见 `MenuBarIcon`）。存的是 rawValue，
+    /// 认不出来的值会回落到默认图案，绝不因为一个字段让整份设置失效。
+    var menuBarIcon: MenuBarIcon = .fallback
 
     // MARK: 更新
 
@@ -58,6 +61,8 @@ struct Preferences: Codable, Equatable {
         snapToEdges = (try? c.decode(Bool.self, forKey: .snapToEdges)) ?? d.snapToEdges
         videosMutedByDefault = (try? c.decode(Bool.self, forKey: .videosMutedByDefault))
             ?? d.videosMutedByDefault
+        // 认不出的图案 → 默认笑脸（`try?` 已经把未知 rawValue 挡在外面了）
+        menuBarIcon = (try? c.decode(MenuBarIcon.self, forKey: .menuBarIcon)) ?? d.menuBarIcon
 
         autoCheckForUpdates = (try? c.decode(Bool.self, forKey: .autoCheckForUpdates))
             ?? d.autoCheckForUpdates
@@ -69,7 +74,7 @@ struct Preferences: Codable, Equatable {
     private enum Keys: String, CodingKey {
         case motionSpeed, hideOnFullscreen, pauseWhenOccluded, pauseOnBattery
         case decodePixelLimit, defaultSize, restoreSession, launchAtLogin, snapToEdges
-        case videosMutedByDefault
+        case videosMutedByDefault, menuBarIcon
         case autoCheckForUpdates, autoInstallUpdates, skippedVersion
     }
 }

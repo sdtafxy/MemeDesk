@@ -3,8 +3,10 @@ import SwiftUI
 
 // MARK: - 品牌资源
 
-/// App 图标在程序内的统一入口：Finder 里的图标、菜单栏按钮、
-/// 欢迎页、菜单栏面板、设置页全都读这里，保证永远同步。
+/// App 图标在程序内的统一入口：Finder 里的图标、欢迎页、菜单栏面板、设置页都读这里。
+///
+/// ⚠️ **菜单栏按钮不再用这里的图** —— 那是 512px 的橙色圆角方块，塞进菜单栏既比系统
+/// 图标"重"、又比它们小一圈。菜单栏走 `MenuBarIcon`（矢量模板图，由系统上色）。
 enum AppBrand {
 
     /// 从 bundle 里读 AppIcon.png（Scripts/make_icon.py 生成，build.sh 负责复制）。
@@ -17,18 +19,6 @@ enum AppBrand {
             return appIcon
         }
         return nil
-    }
-
-    /// 菜单栏按钮用的图标：渲染成固定点数的正方形，非模板（保留彩色笑脸）。
-    static func menuBarImage(pointSize: CGFloat = 17) -> NSImage? {
-        guard let base = image() else { return nil }
-        let target = NSSize(width: pointSize, height: pointSize)
-        let image = NSImage(size: target, flipped: false) { rect in
-            base.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
-            return true
-        }
-        image.isTemplate = false
-        return image
     }
 }
 

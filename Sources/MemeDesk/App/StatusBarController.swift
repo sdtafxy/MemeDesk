@@ -15,11 +15,21 @@ final class StatusBarController: NSObject {
     private var localMonitor: Any?
     private var globalMonitor: Any?
     private var summariesSink: AnyCancellable?
+    private var iconSink: AnyCancellable?
 
     /// 弹出素材右键 NSMenu 期间，抑制“点到面板外就收起”。
     private var menuSuppression = 0
 
     private var isOpen: Bool { popover?.isShown == true }
+
+    /// 菜单栏按钮的图案。
+    ///
+    /// 刻意**不用** `AppIcon` —— 那是个橙色的圆角方块，塞进菜单栏既比系统图标"重"，
+    /// 又比它们小一圈。这里用的是矢量绘制的模板图，由系统按菜单栏明暗自动上色。
+    /// 尺寸取 18pt（内容直径约 16pt），与 SF Symbols 在菜单栏里的视觉大小对齐。
+    private static func menuBarImage(for icon: MenuBarIcon) -> NSImage {
+        icon.image(pointSize: 18)
+    }
 
     // MARK: 安装
 
@@ -28,7 +38,7 @@ final class StatusBarController: NSObject {
 
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = item.button {
-            button.image = AppBrand.menuBarImage()
+            button.image = Self.menuBarImage(for: Stage.shared.preferences.menuBarIcon)
             button.imagePosition = .imageOnly
             button.target = self
             button.action = #selector(statusButtonClicked(_:))
@@ -36,6 +46,15 @@ final class StatusBarController: NSObject {
             button.setAccessibilityLabel("MemeDesk")
         }
         statusItem = item
+
+        // 设置页换了图案要立刻生效，不用重启。
+        iconSink = Stage.shared.$preferences
+            .map(\.menuBarIcon)
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] icon in
+                self?.statusItem?.button?.image = Self.menuBarImage(for: icon)
+            }
 
         let popover = NSPopover()
         popover.behavior = .applicationDefined   // 收起时机自己管，NSMenu 弹出时不会被误关

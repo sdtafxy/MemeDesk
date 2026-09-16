@@ -54,6 +54,8 @@ public enum LKey: String, Sendable {
     case showAll
     case hideAll
     case clearDesk
+    case clearDeskConfirm
+    case clearDeskHint
     case removeFromDesk
     case layerPosition
     case motion
@@ -82,6 +84,16 @@ public enum LKey: String, Sendable {
     // 设置
     case settingsTitle
     case language
+    case menuBarIcon
+    case menuBarIconHint
+    case iconSmile
+    case iconGrin
+    case iconWink
+    case iconSurprised
+    case iconCool
+    case iconLove
+    case iconSad
+    case iconAngry
     case placement
     case defaultSize
     case snapToEdges
@@ -214,6 +226,9 @@ public enum LKey: String, Sendable {
         case .showAll: return ("全部显示", "Show all")
         case .hideAll: return ("全部收起", "Hide all")
         case .clearDesk: return ("清空桌面", "Clear desk")
+        case .clearDeskConfirm: return ("确认清空", "Confirm")
+        case .clearDeskHint: return ("会移除桌面上全部表情包（素材文件不受影响）",
+                                     "Removes every sticker from the desk (the files themselves are untouched)")
 
         case .removeFromDesk: return ("从桌面移除", "Remove from desk")
         case .layerPosition: return ("图层位置", "Layer")
@@ -240,6 +255,17 @@ public enum LKey: String, Sendable {
 
         case .settingsTitle: return ("MemeDesk 设置", "MemeDesk Settings")
         case .language: return ("语言", "Language")
+        case .menuBarIcon: return ("菜单栏图标", "Menu bar icon")
+        case .menuBarIconHint: return ("图标会跟随菜单栏明暗自动变成黑或白。",
+                                       "The icon follows the menu bar and switches between black and white.")
+        case .iconSmile: return ("微笑", "Smile")
+        case .iconGrin: return ("大笑", "Laughing")
+        case .iconWink: return ("眨眼", "Wink")
+        case .iconSurprised: return ("惊讶", "Surprised")
+        case .iconCool: return ("墨镜", "Cool")
+        case .iconLove: return ("爱心", "Love")
+        case .iconSad: return ("难过", "Sad")
+        case .iconAngry: return ("生气", "Angry")
         case .placement: return ("投放", "Placement")
         case .defaultSize: return ("新表情包边长", "Default size")
         case .snapToEdges: return ("拖拽时自动吸边", "Snap to screen edges while dragging")

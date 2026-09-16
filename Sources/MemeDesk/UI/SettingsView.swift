@@ -6,6 +6,24 @@ struct SettingsView: View {
     @ObservedObject private var loc = Localization.shared
     /// 只用来让「状态」一行重新求值：切语言或点刷新都会让它自增。
     @State private var statusTick = 0
+    /// 「清空桌面」的两段式确认，和菜单栏面板里那颗按钮同一套行为。
+    @State private var clearArmed = false
+    @State private var clearDisarm: Task<Void, Never>?
+
+    private func handleClearDesk() {
+        clearDisarm?.cancel()
+        guard clearArmed else {
+            clearArmed = true
+            clearDisarm = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                guard !Task.isCancelled else { return }
+                clearArmed = false
+            }
+            return
+        }
+        clearArmed = false
+        stage.removeAll()
+    }
 
     private var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.1"
@@ -26,6 +44,8 @@ struct SettingsView: View {
                 }
                 .labelsHidden()
             }
+
+            MenuBarIconSection()
 
             Section(loc[.placement]) {
                 HStack {
@@ -106,8 +126,11 @@ struct SettingsView: View {
                         .font(MD.fontCaption)
                         .foregroundStyle(MD.inkSub)
                     Spacer()
-                    Button(loc[.clearDesk], role: .destructive) { stage.removeAll() }
-                        .buttonStyle(MDButtonStyle(compact: true))
+                    Button(clearArmed ? loc[.clearDeskConfirm] : loc[.clearDesk], role: .destructive) {
+                        handleClearDesk()
+                    }
+                    .buttonStyle(MDButtonStyle(compact: true))
+                    .help(loc[.clearDeskHint])
                     Button(loc[.openSamples]) { Task { @MainActor in LibraryWindow.show() } }
                         .buttonStyle(MDButtonStyle(compact: true))
                 }

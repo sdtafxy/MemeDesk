@@ -145,8 +145,16 @@ The menu-bar panel, welcome window, settings and library share one design langua
 white canvas (near-black in dark mode), grey block buttons, and a single brand orange reserved
 for the primary action. Colors, corner radii and type sizes live in
 `Sources/MemeDesk/UI/Design.swift`; the app icon is generated from one 1024 px master by
-`Scripts/make_icon.py` into both `.icns` and `.png`, so Finder, the menu bar and the welcome
+`Scripts/make_icon.py` into both `.icns` and `.png`, so Finder, the Dock and the welcome
 window all show the same face.
+
+**The menu bar button is a deliberate exception.** It does not use the app icon there — an
+orange rounded square reads as both heavier and smaller than the system's own glyphs. It is a
+**template image** drawn as vector paths in `Sources/MemeDesk/UI/MenuBarIcon.swift`: a solid
+round face with the features knocked out, and the colour left to the system, so it is black on
+a light menu bar and white on a dark one. Eight faces are available (smile, laughing, wink,
+surprised, cool, love, sad, angry) and can be switched at any time in Settings, taking effect
+immediately.
 
 ## Requirements
 
