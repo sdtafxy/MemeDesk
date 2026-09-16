@@ -40,6 +40,11 @@ struct MenuBarRootView: View {
     @ObservedObject private var loc = Localization.shared
     @ObservedObject private var update = UpdateService.shared
 
+    /// 「清空桌面」的二次确认：第一次点只是"待命"，几秒内不点第二次就自动解除。
+    /// 那是个不可撤销的操作，而面板里的按钮跟旁边的一模一样大，误点的代价太高。
+    @State private var clearArmed = false
+    @State private var clearDisarm: Task<Void, Never>?
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -163,8 +168,11 @@ struct MenuBarRootView: View {
                              icon: allHidden ? "eye" : "eye.slash") {
                     if allHidden { stage.showAll() } else { stage.hideAllTemporary() }
                 }
-                footerButton(loc[.clearDesk], icon: "trash", role: .destructive) {
-                    stage.removeAll()
+                footerButton(clearArmed ? loc[.clearDeskConfirm] : loc[.clearDesk],
+                             icon: clearArmed ? "exclamationmark.triangle" : "trash",
+                             role: .destructive,
+                             help: clearArmed ? loc[.clearDeskHint] : nil) {
+                    handleClearDesk()
                 }
                 footerButton(loc[.quit], icon: "power") {
                     Stage.shared.saveNow()
@@ -174,11 +182,28 @@ struct MenuBarRootView: View {
         }
     }
 
+    /// 两段式清空：先"待命"，再确认。中途把面板关掉、或者干等几秒，都会自动解除。
+    private func handleClearDesk() {
+        clearDisarm?.cancel()
+        guard clearArmed else {
+            clearArmed = true
+            clearDisarm = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                guard !Task.isCancelled else { return }
+                clearArmed = false
+            }
+            return
+        }
+        clearArmed = false
+        stage.removeAll()
+    }
+
     /// `badge` 只在设置的图标上点一个小圆点表示"有新版"。
     /// 用 overlay 而不是加一行 —— 面板高度是算术常量（`PanelMetrics`），不能被动到。
     private func footerButton(_ title: String, icon: String,
                               role: ButtonRole? = nil,
                               badge: Bool = false,
+                              help: String? = nil,
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 3) {
@@ -199,7 +224,7 @@ struct MenuBarRootView: View {
             .frame(height: 42)
         }
         .buttonStyle(MDIconButtonStyle(role: role))
-        .help(badge ? loc[.updateBadgeTip] : title)
+        .help(help ?? (badge ? loc[.updateBadgeTip] : title))
     }
 
     private func addFiles() async {

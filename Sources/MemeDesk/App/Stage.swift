@@ -50,6 +50,11 @@ final class Stage: ObservableObject {
     /// 落在本应用之外的鼠标按下 —— 清空选中用，见 `installSelectionWatcher()`。
     private var outsideClickMonitor: Any?
 
+    /// 关掉「下次启动恢复上次桌面」之后，这次启动的桌面是空的 ——
+    /// 但那个空状态**不能**被写回存档，否则用户只要把开关拨回去，布局已经被覆盖、再也回不来。
+    /// 置位期间一律拒绝落盘，直到用户真的动了桌面（见 `unfreezeArchive()` 的调用点）。
+    private var archiveIsFrozen = false
+
     private init() {
         // 设置面板改动 → 立刻重新裁决播放策略并落盘
         prefSink = $preferences.sink { [weak self] _ in
@@ -121,6 +126,7 @@ final class Stage: ObservableObject {
 
     func add(urls: [URL]) async {
         guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
+        var addedCount = 0
         for (offset, url) in urls.enumerated() {
             guard FileManager.default.fileExists(atPath: url.path) else { continue }
             let kind = MediaProbe.kind(of: url)
@@ -144,7 +150,10 @@ final class Stage: ObservableObject {
             )
             configs.append(config)
             spawn(config)
+            addedCount += 1
         }
+        // 一个都没加进来（文件都被删了）时桌面没变，保持冻结，别覆盖存档。
+        if addedCount > 0 { unfreezeArchive() }
         publishSummaries()
         refreshRunningState()
         markDirty()
@@ -157,6 +166,8 @@ final class Stage: ObservableObject {
     }
 
     func remove(_ id: UUID) {
+        guard index(of: id) != nil else { return }
+        unfreezeArchive()
         controllers.removeValue(forKey: id)?.teardown()
         configs.removeAll { $0.id == id }
         motionEngine.reset(id)
@@ -167,6 +178,7 @@ final class Stage: ObservableObject {
 
     func duplicate(_ id: UUID) {
         guard let cfg = config(for: id) else { return }
+        unfreezeArchive()
         var copy = cfg
         copy.id = UUID()
         copy.frame = FrameBox(x: cfg.frame.x + 32, y: cfg.frame.y - 32,
@@ -178,6 +190,8 @@ final class Stage: ObservableObject {
     }
 
     func removeAll() {
+        guard !configs.isEmpty else { return }
+        unfreezeArchive()
         for controller in controllers.values { controller.teardown() }
         controllers.removeAll()
         configs.removeAll()
@@ -207,6 +221,7 @@ final class Stage: ObservableObject {
     /// 唯一的写入口：改数据 → 应用到窗口 → 更新 UI 快照 → 落盘。
     func update(_ id: UUID, publish: Bool = true, mutate: (inout StickerConfig) -> Void) {
         guard let i = index(of: id) else { return }
+        unfreezeArchive()
         mutate(&configs[i])
         let updated = configs[i]
         controllers[id]?.apply(config: updated)
@@ -296,6 +311,8 @@ final class Stage: ObservableObject {
     }
 
     private func updateAllGlobally(_ mutate: (inout StickerConfig) -> Void) {
+        guard !configs.isEmpty else { return }
+        unfreezeArchive()
         for i in configs.indices { mutate(&configs[i]) }
         for config in configs { controllers[config.id]?.apply(config: config) }
         publishSummaries()
@@ -409,12 +426,25 @@ final class Stage: ObservableObject {
         guard let data = try? Data(contentsOf: stateFile),
               let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data)
         else { return }
-        configs = snapshot.stickers
+
+        // 「下次启动恢复上次桌面」关掉时，这次启动就该是空桌面。
+        // 注意**不要**顺手把空状态落盘：`preferences` 的赋值会立刻触发 `prefSink`，
+        // 5 秒一次的周期保存也会跟上来，两者都会把空的 configs 写回 desk.json ——
+        // 于是用户把开关拨回去时布局已经没了。冻结到用户真的动了桌面为止。
+        let startsEmpty = !snapshot.preferences.restoreSession
+        archiveIsFrozen = startsEmpty
+
+        configs = startsEmpty ? [] : snapshot.stickers
         preferences = snapshot.preferences
-        if !preferences.restoreSession { configs = [] }
+    }
+
+    /// 用户动了桌面 —— 从此当前状态就是新的存档，允许落盘。
+    private func unfreezeArchive() {
+        archiveIsFrozen = false
     }
 
     func saveNow() {
+        guard !archiveIsFrozen else { return }
         let snapshot = Snapshot(stickers: configs, preferences: preferences)
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         try? data.write(to: stateFile, options: .atomic)

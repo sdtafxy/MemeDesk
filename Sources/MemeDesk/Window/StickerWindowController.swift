@@ -47,9 +47,17 @@ final class StickerWindowController: NSWindowController {
             self.stage.select(self.stickerID)
         }
         contentView.onTogglePlay = { [weak self] in self?.togglePlay() }
-        contentView.onMenuInteraction = { [weak self] active in
-            guard let self else { return }
-            active ? self.beginMenuPresentation() : self.endMenuPresentation()
+        // ⚠️ `stage` 是刻意用 weak 捕获**单例**、而不是捕获控制器的。
+        //
+        // 菜单里点「从桌面移除」时，`stage.remove(id)` 会把本控制器销毁（它是唯一强引用），
+        // 而 `StickerView.rightMouseDown` 是靠 `defer` 回调这里来配对的。
+        // 如果这里写 `guard let self else { return }`，控制器一没，配对的 `false` 就静默丢失，
+        // `Stage.menuInteractionCount` 永久多 1 —— 后果是**全场运动动画到重启前都不再更新**。
+        // 捕获 `Stage.shared`（它永不析构）就能保证这一半永远执行；
+        // 窗口层级那一半控制器没了也无所谓（那个窗口已经关了）。
+        contentView.onMenuInteraction = { [weak self, weak stage] active in
+            stage?.setMenuInteraction(active)
+            self?.applyMenuPresentation(active)
         }
         installMenu()
 
@@ -355,18 +363,15 @@ final class StickerWindowController: NSWindowController {
     // 1) 冻结运动：菜单锚在屏幕上，窗口一动菜单就"追着人跑"；
     // 2) 把窗口压到弹出菜单之下，免得"悬浮于一切之上"的素材盖住自己的菜单；
     // 3) 菜单收起后取消选中 —— 高亮只在"用户正对着这个素材"时才有意义。
+    //
+    // ⚠️ 只有 2) 和 3) 在这里做。1) 那半（`stage.setMenuInteraction`）**必须由调用方无条件执行**，
+    // 因为这个控制器可能在菜单动作里就被销毁了 —— 原因见 `init` 里的注释。
 
-    private func beginMenuPresentation() {
-        stage.setMenuInteraction(true)
-        stickerWindow.setMenuPresentation(true)
-    }
-
-    private func endMenuPresentation() {
-        stickerWindow.setMenuPresentation(false)
-        stage.setMenuInteraction(false)
+    private func applyMenuPresentation(_ active: Bool) {
+        stickerWindow.setMenuPresentation(active)
         // 不要只指望 NSApplication.didResignActiveNotification：走完菜单之后，
         // 应用的激活状态往往根本没变过，那个通知不触发，蓝框就留在桌面上了。
-        stage.select(nil)
+        if !active { stage.select(nil) }
     }
 
     // MARK: - 右键菜单
