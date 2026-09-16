@@ -4,6 +4,49 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-09-16
+
+### Added
+
+- **A choice of menu bar faces.** The status item now offers eight vector faces — smile,
+  laughing, wink, surprised, cool, love, sad, angry — switchable in Settings and applied
+  immediately, with no relaunch.
+
+### Changed
+
+- **The menu bar button is a template image now, not the app icon.** It used to shrink the
+  512 px app icon (an orange rounded square) into 17 pt with `isTemplate = false`, which read
+  as both heavier and smaller than the system's own glyphs. It is drawn as vector paths on a
+  24×24 grid instead: a solid disc with the features knocked out, filling about 86% of an
+  18 pt canvas, handed to the system as a template so it is black on a light menu bar and white
+  on a dark one. The geometry is exercised by a standalone harness that dumps every face to a
+  PNG — a menu bar cannot be screenshotted from here, so that is the only way to check shapes.
+  `AppBrand.menuBarImage` is gone with it.
+
+### Fixed
+
+- **Removing a sticker from its right-click menu froze all motion until relaunch.**
+  `Stage.menuInteractionCount` goes up when a menu opens and comes back down from a `defer` in
+  `StickerView.rightMouseDown` — but that callback was a `[weak self]` closure over the *window
+  controller*, and "Remove from desk" destroys that controller before the menu returns. The
+  unwrap then failed silently, the count never came back down, and `ensureMotionLoop()` concluded
+  motion was never needed again: gravity, bouncing, drifting and wandering all stopped until the
+  next launch. The callback now captures `Stage.shared`, which outlives any single sticker, so the
+  decrement is unconditional; only the window-level part is skipped when the controller is gone.
+- **Turning off "restore the last session on launch" destroyed the saved desk.** The empty
+  starting desk was written straight back to `desk.json` — once by the debounced save, again by
+  the five-second periodic one — so switching the setting back on could not bring anything back.
+  The archive is now frozen while a session starts empty, and released the moment the desk really
+  changes, i.e. the first sticker the user adds, moves or edits. Measured both ways: the old
+  build left 0 of 2 stickers, this one keeps all 2, and the archive still follows the user once
+  they touch the desk.
+- **"Clear desk" asks for confirmation.** It was a single click in the panel, the same size as
+  its neighbours, with no undo. It now arms itself on the first click ("Confirm") and disarms
+  after four seconds. Same behaviour in Settings.
+- `Preferences` gains `menuBarIcon`. As with every other field it is decoded tolerantly, so an
+  existing `desk.json` without it still loads in full — verified, along with an unknown icon name
+  falling back to the default rather than failing the whole decode.
+
 ## [0.1.2] - 2026-09-13
 
 ### Fixed
