@@ -86,6 +86,8 @@ public enum LKey: String, Sendable {
     case language
     case menuBarIcon
     case menuBarIconHint
+    case menuBarIconGroupFaces
+    case menuBarIconGroupJimi
     case iconSmile
     case iconGrin
     case iconWink
@@ -94,6 +96,8 @@ public enum LKey: String, Sendable {
     case iconLove
     case iconSad
     case iconAngry
+    case iconJimiSmile
+    case iconJimiFacepalm
     case placement
     case defaultSize
     case snapToEdges
@@ -258,6 +262,8 @@ public enum LKey: String, Sendable {
         case .menuBarIcon: return ("菜单栏图标", "Menu bar icon")
         case .menuBarIconHint: return ("图标会跟随菜单栏明暗自动变成黑或白。",
                                        "The icon follows the menu bar and switches between black and white.")
+        case .menuBarIconGroupFaces: return ("笑脸", "Faces")
+        case .menuBarIconGroupJimi: return ("基米", "Jimi")
         case .iconSmile: return ("微笑", "Smile")
         case .iconGrin: return ("大笑", "Laughing")
         case .iconWink: return ("眨眼", "Wink")
@@ -266,6 +272,8 @@ public enum LKey: String, Sendable {
         case .iconLove: return ("爱心", "Love")
         case .iconSad: return ("难过", "Sad")
         case .iconAngry: return ("生气", "Angry")
+        case .iconJimiSmile: return ("咧嘴笑", "Grinning")
+        case .iconJimiFacepalm: return ("挠头", "Scratching head")
         case .placement: return ("投放", "Placement")
         case .defaultSize: return ("新表情包边长", "Default size")
         case .snapToEdges: return ("拖拽时自动吸边", "Snap to screen edges while dragging")

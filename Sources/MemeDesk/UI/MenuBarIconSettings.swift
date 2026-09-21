@@ -13,19 +13,31 @@ struct MenuBarIconSection: View {
 
     var body: some View {
         Section(loc[.menuBarIcon]) {
-            LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(MenuBarIcon.allCases) { icon in
-                    cell(for: icon)
+            // 分组渲染：只有一组时不显示小标题，免得为了一个"标题 + 网格"的层级白占一行。
+            ForEach(MenuBarIconGroup.allCases) { group in
+                if showsGroupTitles {
+                    Text(loc[Self.groupLabelKey(group)])
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(MD.inkSub)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, group == MenuBarIconGroup.allCases.first ? 2 : 10)
+                }
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(group.icons) { icon in
+                        cell(for: icon)
+                    }
                 }
             }
-            .padding(.vertical, 2)
 
             Text(loc[.menuBarIconHint])
                 .font(MD.fontCaption)
                 .foregroundStyle(MD.inkSub)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
         }
     }
+
+    private var showsGroupTitles: Bool { MenuBarIconGroup.allCases.count > 1 }
 
     private func cell(for icon: MenuBarIcon) -> some View {
         let selected = stage.preferences.menuBarIcon == icon
@@ -71,6 +83,15 @@ struct MenuBarIconSection: View {
         case .love: return .iconLove
         case .sad: return .iconSad
         case .angry: return .iconAngry
+        case .jimiSmile: return .iconJimiSmile
+        case .jimiFacepalm: return .iconJimiFacepalm
+        }
+    }
+
+    private static func groupLabelKey(_ group: MenuBarIconGroup) -> LKey {
+        switch group {
+        case .faces: return .menuBarIconGroupFaces
+        case .jimi: return .menuBarIconGroupJimi
         }
     }
 }

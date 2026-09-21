@@ -150,11 +150,16 @@ window all show the same face.
 
 **The menu bar button is a deliberate exception.** It does not use the app icon there — an
 orange rounded square reads as both heavier and smaller than the system's own glyphs. It is a
-**template image** drawn as vector paths in `Sources/MemeDesk/UI/MenuBarIcon.swift`: a solid
-round face with the features knocked out, and the colour left to the system, so it is black on
-a light menu bar and white on a dark one. Eight faces are available (smile, laughing, wink,
-surprised, cool, love, sad, angry) and can be switched at any time in Settings, taking effect
-immediately.
+**template image**, its colour left to the system, so it is black on a light menu bar and white
+on a dark one, and it can be switched at any time in Settings, taking effect immediately. There
+are two groups:
+
+- **Faces** (vector, `Sources/MemeDesk/UI/MenuBarIcon.swift`) — a solid round face with the
+  features knocked out: smile, laughing, wink, surprised, cool, love, sad, angry.
+- **Jimi** (quantised from photographs, `Sources/MemeDesk/UI/MenuBarIconBitmaps.swift`) — four
+  grey levels, solid where dark and transparent where light: grinning, scratching head. The data
+  is packed at two bits per pixel and embedded in the source, so the app ships no extra image
+  resource; `Scripts/make_menubar_icons.py` regenerates it.
 
 ## Requirements
 

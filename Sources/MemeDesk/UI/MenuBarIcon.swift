@@ -1,16 +1,28 @@
 import AppKit
 
+/// 菜单栏图标的分组。设置页按组成列，方便以后继续加。
+enum MenuBarIconGroup: String, CaseIterable, Identifiable, Sendable {
+    case faces
+    case jimi
+
+    var id: String { rawValue }
+
+    var icons: [MenuBarIcon] {
+        MenuBarIcon.allCases.filter { $0.group == self }
+    }
+}
+
 /// 菜单栏按钮的图标。
 ///
 /// 设计要点：
 ///
-/// 1. **实心圆盘 + 镂空五官。** 整个脸是一块实心色块，眼睛和嘴是**挖空**出来的。
+/// 1. **实心剪影 + 镂空五官。** 图案是一块实心色块，眼睛和嘴是**挖空**出来的。
 ///    没有外描边 —— 描边版在 16pt 上会显得毛糙，实心块边缘更干净，
 ///    观感也更接近系统自带图标。
 /// 2. **模板图（`isTemplate = true`）。** 绘制时只填黑色，实际颜色交给系统：
 ///    浅色菜单栏渲染成黑、深色渲染成白，按下时自动反色。所谓"白色 + 透明"，
 ///    关键在 alpha，不在颜色。
-/// 3. **画满画布。** 圆盘直径约占画布 86%，与 SF Symbols 在菜单栏里的视觉大小对齐。
+/// 3. **画满画布。** 圆形脸的直径约占画布 86%，与 SF Symbols 在菜单栏里的视觉大小对齐。
 /// 4. **矢量绘制。** 在 24×24 的逻辑网格里画，再统一缩放到目标点数；
 ///    因为缩放发生在 CTM 上，**线宽也一起缩放**，所以只用一套数字就够。
 ///
@@ -18,6 +30,8 @@ import AppKit
 /// 所以能单独 `swiftc` 编译出来把每个图标 dump 成 PNG 做目视校对 ——
 /// 菜单栏截不了图，那是唯一能验证形状的手段。改图形时请保持这个性质。
 enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
+
+    // 笑脸
     case smile
     case grin
     case wink
@@ -27,7 +41,20 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
     case sad
     case angry
 
+    // 基米（用户提供的猫头像重绘）
+    case jimiSmile
+    case jimiFacepalm
+
     var id: String { rawValue }
+
+    var group: MenuBarIconGroup {
+        switch self {
+        case .smile, .grin, .wink, .surprised, .cool, .love, .sad, .angry:
+            return .faces
+        case .jimiSmile, .jimiFacepalm:
+            return .jimi
+        }
+    }
 
     /// 找不到／解析失败时用的那个。与 App 图标同款。
     static let fallback: MenuBarIcon = .smile
@@ -38,7 +65,14 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 
     /// 渲染成模板图。`pointSize` 是画布边长（点）。
+    ///
+    /// 「基米」那两个是**从照片量化出来的四级灰度图**（暗处实心、亮处透明），
+    /// 其余走矢量。两者都是模板图，颜色交给系统。
     func image(pointSize: CGFloat = 18) -> NSImage {
+        if let bitmap = Self.decodedBitmap(self) {
+            bitmap.size = NSSize(width: pointSize, height: pointSize)
+            return bitmap
+        }
         let size = NSSize(width: pointSize, height: pointSize)
         // flipped: true → 坐标系原点在左上、y 向下，和写 SVG 时一致，省得每处都要翻符号。
         let image = NSImage(size: size, flipped: true) { _ in
@@ -49,13 +83,61 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
         return image
     }
 
+    /// 内嵌的 4 级 alpha 数据 → 模板图。返回 nil 表示这个图案走矢量。
+    ///
+    /// 数据由 `Scripts/make_menubar_icons.py` 从照片生成，2bit/像素打包后 base64。
+    /// 打包而不是带 PNG 资源，是为了让 App 里不多一份资源、这个文件也仍然只依赖 AppKit ——
+    /// 那样才能单独 `swiftc` 出来 dump 成 PNG 做目视校对。
+    private static func decodedBitmap(_ icon: MenuBarIcon) -> NSImage? {
+        guard let encoded = bitmapData(for: icon) else { return nil }
+        let side = MenuBarIconBitmaps.side
+        guard let data = Data(base64Encoded: encoded, options: .ignoreUnknownCharacters),
+              data.count >= side * side / 4,
+              let rep = NSBitmapImageRep(bitmapDataPlanes: nil,
+                                         pixelsWide: side, pixelsHigh: side,
+                                         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                         isPlanar: false, colorSpaceName: .deviceRGB,
+                                         bytesPerRow: 0, bitsPerPixel: 0),
+              let pixels = rep.bitmapData
+        else { return nil }
+
+        let rowBytes = rep.bytesPerRow
+        for y in 0..<side {
+            for x in 0..<side {
+                let index = y * side + x
+                let byte = data[index >> 2]
+                let level = (byte >> UInt8((3 - (index & 3)) * 2)) & 0b11
+                let offset = y * rowBytes + x * 4
+                pixels[offset] = 0
+                pixels[offset + 1] = 0
+                pixels[offset + 2] = 0
+                pixels[offset + 3] = level * 85        // 0 / 85 / 170 / 255
+            }
+        }
+
+        rep.size = NSSize(width: 18, height: 18)
+        let image = NSImage(size: NSSize(width: 18, height: 18))
+        image.addRepresentation(rep)
+        image.isTemplate = true
+        return image
+    }
+
+    /// 哪些图案有照片量化数据。
+    private static func bitmapData(for icon: MenuBarIcon) -> String? {
+        switch icon {
+        case .jimiSmile: return MenuBarIconBitmaps.jimiSmile
+        case .jimiFacepalm: return MenuBarIconBitmaps.jimiFacepalm
+        default: return nil
+        }
+    }
+
     // MARK: - 绘制
     //
     // 全部图形都画在 24×24 的逻辑网格里，最后统一按 pointSize 缩放。
 
     private static let grid: CGFloat = 24
 
-    /// 脸的圆盘：圆心、半径。
+    /// 圆形脸：圆心、半径。
     private static let faceCenter: CGFloat = 12
     private static let faceRadius: CGFloat = 10.3
     /// 五官线宽（弧线类：嘴、眼、眉毛）。
@@ -71,12 +153,9 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
         transform.concat()
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
 
-        // ① 实心圆盘
+        // ① 实心剪影。可以是好几块互相重叠的图形 —— 反正都在同一种颜色里，重叠没有副作用。
         NSColor.black.setFill()
-        NSBezierPath(ovalIn: NSRect(x: faceCenter - faceRadius,
-                                    y: faceCenter - faceRadius,
-                                    width: faceRadius * 2,
-                                    height: faceRadius * 2)).fill()
+        for shape in silhouette(for: icon) { shape.fill() }
 
         // ② 切到擦除模式，把五官"挖"出来。
         //
@@ -87,8 +166,13 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
         // 这个混合只作用在 NSImage 自己的后备位图上（懒绘制的图会先渲进一块带 alpha 的
         // 位图），不受最终贴到哪里影响 —— 模板图需要的正是那份 alpha。
         ctx.setBlendMode(.clear)
+        paint(erase(for: icon))
+    }
+
+    private static func paint(_ features: [Feature]) {
+        NSColor.black.setFill()
         NSColor.black.setStroke()
-        for feature in features(for: icon) {
+        for feature in features {
             if let width = feature.width {
                 feature.path.lineWidth = width
                 feature.path.lineCapStyle = .round
@@ -98,10 +182,9 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
                 feature.path.fill()
             }
         }
-        ctx.setBlendMode(.normal)
     }
 
-    /// 一段要挖空的图形。`width` 为 nil 表示整块填充，否则是描边宽度。
+    /// 一段图形。`width` 为 nil 表示整块填充，否则是描边宽度。
     private struct Feature {
         let path: NSBezierPath
         var width: CGFloat?
@@ -115,11 +198,18 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
         Feature(path: path, width: width)
     }
 
-    /// 该图案要挖空的所有五官。
-    private static func features(for icon: MenuBarIcon) -> [Feature] {
+    // MARK: - 剪影
+
+    /// 这个图案的实心部分。只有圆形脸这一种 ——
+    /// 「基米」走的是照片量化那条路（见 `decodedBitmap`），根本不经过这里。
+    private static func silhouette(for icon: MenuBarIcon) -> [NSBezierPath] {
+        [oval(centerX: faceCenter, centerY: faceCenter, radius: faceRadius)]
+    }
+
+    /// 该图案要挖空的五官。
+    private static func erase(for icon: MenuBarIcon) -> [Feature] {
         switch icon {
-        case .smile:
-            return [filled(eyeDot(left: true)), filled(eyeDot(left: false)), stroked(smileArc())]
+        case .smile:            return [filled(eyeDot(left: true)), filled(eyeDot(left: false)), stroked(smileArc())]
 
         case .grin:
             return [stroked(closedEyeArc(left: true)),
@@ -163,15 +253,21 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
             }
             out.append(stroked(frownArc(openAt: 8.6, closeAt: 15.4, baseline: 16.6, rise: 3.3)))
             return out
+
+        case .jimiSmile, .jimiFacepalm:
+            // 这两个是照片量化出来的位图，根本不走矢量这条路（见 `decodedBitmap`）。
+            return []
         }
     }
 
-    // MARK: - 五官
+    // MARK: - 基础图形
 
     private static func oval(centerX: CGFloat, centerY: CGFloat, radius: CGFloat) -> NSBezierPath {
         NSBezierPath(ovalIn: NSRect(x: centerX - radius, y: centerY - radius,
                                     width: radius * 2, height: radius * 2))
     }
+
+    // MARK: - 五官
 
     /// 一只圆点眼。
     private static func eyeDot(left: Bool, radius: CGFloat = dotEyeRadius, y: CGFloat = eyeY) -> NSBezierPath {
@@ -228,7 +324,6 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
     ///
     /// 分开画会踩坑：横梁两端的圆头会扎进镜片里 —— 早先用 even-odd 填充时，
     /// 交叠处环绕数变偶数于是翻回实心，镜片上留下两个黑色缺口（实测过）。
-    /// 一条轮廓没有任何自交，形状完全可控。
     private static func goggles() -> NSBezierPath {
         let top: CGFloat = 8.9
         let bottom: CGFloat = 12.4
@@ -240,19 +335,19 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
         let rightCX = right - radius
 
         let path = NSBezierPath()
-        path.move(to: NSPoint(x: left, y: cy))                    // 最左点
+        path.move(to: NSPoint(x: left, y: cy))
         path.appendArc(withCenter: NSPoint(x: leftCX, y: cy), radius: radius,
-                       startAngle: 180, endAngle: 270)             // 左端上半圆
-        path.line(to: NSPoint(x: rightCX, y: top))                 // 上缘
+                       startAngle: 180, endAngle: 270)
+        path.line(to: NSPoint(x: rightCX, y: top))
         path.appendArc(withCenter: NSPoint(x: rightCX, y: cy), radius: radius,
-                       startAngle: 270, endAngle: 450)             // 右端整半圆
-        path.line(to: NSPoint(x: 13.2, y: bottom))                 // 下缘：右段
-        path.line(to: NSPoint(x: 12.3, y: 11.0))                   // 鼻梁缺口
+                       startAngle: 270, endAngle: 450)
+        path.line(to: NSPoint(x: 13.2, y: bottom))
+        path.line(to: NSPoint(x: 12.3, y: 11.0))
         path.line(to: NSPoint(x: 11.7, y: 11.0))
-        path.line(to: NSPoint(x: 10.8, y: bottom))                 // 下缘：左段
+        path.line(to: NSPoint(x: 10.8, y: bottom))
         path.line(to: NSPoint(x: leftCX, y: bottom))
         path.appendArc(withCenter: NSPoint(x: leftCX, y: cy), radius: radius,
-                       startAngle: 90, endAngle: 180)              // 左端下半圆
+                       startAngle: 90, endAngle: 180)
         path.close()
         return path
     }
