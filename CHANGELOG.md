@@ -4,6 +4,30 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-09-21
+
+### Added
+
+- **A second group of menu bar faces: "Jimi".** Two icons — grinning and scratching head —
+  derived from two photographs of the same cat. They are **quantised to four grey levels**
+  (solid where dark, transparent where light) rather than drawn as vector shapes, because that
+  is what keeps them recognisable as the original: at 36 px the face still reads. Reducing the
+  same photographs to "a solid silhouette with the dark parts knocked out" does not work — the
+  dark regions of a photo are connected shadows, not clean eyes and a mouth, so the result is an
+  amorphous blob.
+- The icon picker is now grouped ("Faces" / "Jimi"), with sub-headers shown only when there is
+  more than one group.
+
+### Changed
+
+- `MenuBarIcon` gained a group. `image(pointSize:)` returns a decoded bitmap for the icons that
+  carry one and falls back to the vector path for the rest.
+- The quantised data is packed at two bits per pixel and embedded as base64 in
+  `Sources/MemeDesk/UI/MenuBarIconBitmaps.swift`, so the app ships no extra image resource and
+  that file still depends on nothing but AppKit — which is what lets it be compiled on its own
+  and dumped to PNG for visual checking. `Scripts/make_menubar_icons.py` regenerates it from the
+  source photographs.
+
 ## [0.1.3] - 2026-09-16
 
 ### Added
