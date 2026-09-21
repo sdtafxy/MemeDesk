@@ -4,6 +4,57 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-09-21
+
+The two "Jimi" menu bar faces were rendering as a pale, hollow ghost of the photographs. The
+quantisation's polarity was inverted, and the tone curve had no white point, so the brightest
+part of the image — the cat's face — landed on level 0 (fully transparent) and the rest of the
+animal collapsed onto level 1.
+
+### Fixed
+
+- **The two "Jimi" faces were inverted.** `make_menubar_icons.py` mapped *dark* to opaque
+  (`round((1 - t) * 3)`), so the brightest region — the face — became fully transparent and
+  everything else piled onto level 1, alpha 85. The measured distribution was 37 / 36 / 18 / 8
+  per cent: half the tile parked on the faintest level that is visible at all. It is now
+  `round(t * 3)`, i.e. what is bright in the photograph is what gets drawn.
+- **Inverting alone was not enough — the face was still washed out.** A photograph's face is a
+  broad midtone, so half of it still landed on the two semi-transparent levels. A levels pass
+  now sits on top of the 6%/94% percentile normalisation: raising the black point is what makes
+  the features genuinely transparent, and **lowering the white point is what makes the face
+  solid**. Level 3 went from 8% of the tile to 36%.
+- **The outline was aliased.** The silhouette was a hard mask (`np.where(mask, lvl, 0)`), which
+  left a ring of stair-stepping around the edge. The tone map is multiplied by the resampled
+  mask instead, so the edge is antialiased.
+- **The two faces read a size larger than the vector ones.** They filled 100% × 93% of the
+  canvas while the eight vector faces are discs of about 86%. In the same row they looked both
+  bigger and heavier; they are scaled to 86% now.
+
+### Changed
+
+- `Scripts/make_menubar_icons.py` lost its entire feature-detection path — `feature_mask`,
+  `components`, the contrast and area thresholds, and the dilation that guaranteed a minimum
+  stroke width. All of it only ever served the "solid silhouette with the dark parts knocked
+  out" experiment, which was tried and rejected: binarising the subject throws away exactly the
+  tonal structure that makes the photograph recognisable. The script is now background removal
+  plus a tone map, and it is shorter than it was in 0.1.4.
+- `release.yml` no longer drops the version from the release body. It rewrote
+  `## [0.1.5] - 2026-09-21` to `## 2026-09-21`, discarding the version number — which is why the
+  bodies of the 0.1.2 through 0.1.5 releases have no version in their heading. They now read
+  `## 0.1.6 — 2026-09-21`.
+- Both READMEs described the faces as "solid where dark and transparent where light", which is
+  the wrong way round; corrected.
+
+### Notes
+
+- Every comparison sheet was rendered at **Retina device pixels** — 18 pt is 36 px there, and
+  the 54 px tile is resampled *down* to that. Rendering at 18 px instead draws detail the menu
+  bar never shows and makes the edges look sharper than they are. The earlier sheets in this
+  round were wrong for that reason.
+- The source photographs are attachments, not repository content — they live in the host's blob
+  store. The generator reproduces the committed bitmaps from them byte for byte, which is how
+  the two were confirmed to be the right pair.
+
 ## [0.1.5] - 2026-09-21
 
 Six defects that the 0.1.3 self-audit turned up, all of them long-standing and none of them
