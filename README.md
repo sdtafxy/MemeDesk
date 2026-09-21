@@ -132,9 +132,9 @@ Finder、Dock 和欢迎页看到的永远是同一张脸。
 
 - **笑脸**（矢量绘制，`Sources/MemeDesk/UI/MenuBarIcon.swift`）——实心圆脸、五官挖空，
   8 个表情：微笑 / 大笑 / 眨眼 / 惊讶 / 墨镜 / 爱心 / 难过 / 生气。
-- **基米**（从照片量化，`Sources/MemeDesk/UI/MenuBarIconBitmaps.swift`）——四级灰度，
-  暗处实心、亮处透明，2 个：咧嘴笑 / 挠头。数据以 2bit/像素打包内嵌在源码里，
-  App 里不需要额外的图片资源；生成脚本是 `Scripts/make_menubar_icons.py`。
+- **基米**（从照片色调映射，`Sources/MemeDesk/UI/MenuBarIconBitmaps.swift`）——四级 alpha，
+  照片里**亮处（脸）实心、暗处（五官）透明**，2 个：咧嘴笑 / 挠头。数据以 2bit/像素打包
+  内嵌在源码里，App 里不需要额外的图片资源；生成脚本是 `Scripts/make_menubar_icons.py`。
 
 ## 环境要求
 

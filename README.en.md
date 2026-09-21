@@ -156,10 +156,11 @@ are two groups:
 
 - **Faces** (vector, `Sources/MemeDesk/UI/MenuBarIcon.swift`) — a solid round face with the
   features knocked out: smile, laughing, wink, surprised, cool, love, sad, angry.
-- **Jimi** (quantised from photographs, `Sources/MemeDesk/UI/MenuBarIconBitmaps.swift`) — four
-  grey levels, solid where dark and transparent where light: grinning, scratching head. The data
-  is packed at two bits per pixel and embedded in the source, so the app ships no extra image
-  resource; `Scripts/make_menubar_icons.py` regenerates it.
+- **Jimi** (tone-mapped from photographs, `Sources/MemeDesk/UI/MenuBarIconBitmaps.swift`) — four
+  alpha levels, **solid where the photograph is bright (the face) and transparent where it is
+  dark (the features)**: grinning, scratching head. The data is packed at two bits per pixel and
+  embedded in the source, so the app ships no extra image resource;
+  `Scripts/make_menubar_icons.py` regenerates it.
 
 ## Requirements
 

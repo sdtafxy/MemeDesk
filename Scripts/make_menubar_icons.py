@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
-"""从照片生成「基米」菜单栏图标的**四级灰度**数据。
+"""从照片生成「基米」菜单栏图标的数据。
 
-为什么要这么做（而不是手画形状）：
-用户的原话是"写实风，可以适当损失细节，但要看起来跟原来差不多"。实测下来，
-把照片压成**四级灰度**（暗处 = 实心、亮处 = 透明）在 36px 下仍能认出是这只猫 ——
-因为脸的结构本来就靠明暗表达；而"实心剪影 + 挖掉暗部"会把同一份信息变成一摊
-不成形的乱白（照片里的暗部是连绵的阴影，不是干净的"眼睛和嘴"）。
+**做法：色调映射（写实风），照片里亮的实心、暗的透明。**
+
+脸整块（照片里偏亮的毛）→ 实心；五官（偏黑的眼睛 / 鼻 / 嘴）→ 透明。
+这保留了照片本身的明暗结构（毛色的深浅、轮廓的起伏），所以 18pt 下仍认得出是这只猫
+—— 这比"二值剪影 + 抠掉五官"更接近用户说的"写实风，可以适当损失细节，但要看起来跟原来差不多"。
+
+⚠️ **极性**：0.1.5 那版是 `lvl = round((1-t)*3)`（暗 = 实心），于是**最亮的脸落到 0 级**、
+整只猫摊在 1 级（alpha 85）上 —— 观感"太淡、猫咪脸部都空心了"。
+反成 `round(t*3)` 之后才对。
+
+⚠️ **光反极性还不够**：照片里的"脸"是一大片中间调，直接反照旧会有一半落在 1/2 级
+（半透明灰），看着还是不实。所以要再压一道**色阶**（`TONE_BLACK` / `TONE_WHITE`）：
+抬黑场让五官真的透明、压白场让**中间调的脸也吃成实心**。这两个数只有 18pt 下才看得出差别。
 
 产出：Sources/MemeDesk/UI/MenuBarIconBitmaps.swift
   —— 4 级 alpha 按 2bit/像素打包再 base64，54×54 一个图标约 1KB。
@@ -26,6 +34,23 @@ SIDE = 54          # 3x of 18pt，菜单栏用 36px、设置页预览用 52px，
 LEVELS = 4
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "Sources" / "MemeDesk" / "UI" / "MenuBarIconBitmaps.swift"
+
+# 主体最长的那个方向占画布的比例。
+#
+# ⚠️ 不能铺满 100%：8 个矢量脸的圆盘直径是 24 格网格里的 20.6 ≈ **86%**，
+# 照片量化出来的这两只是**贴满画布**的（实测宽 100%、高 93%），
+# 于是它们在同一排里明显比别的图标大一圈、重一档，破掉了设计语言的统一。
+# 对齐到 86% 之后，一组十只的视觉重量才一致。
+FILL = 0.86
+
+# 色阶（压在"按主体 6%/94% 分位归一化"之后的一道上限/下限裁剪）。
+#   t 是归一化亮度：0 = 照片里最暗，1 = 最亮。
+#   · 抬黑场 → 比 TONE_BLACK 还暗的（五官）直接透明；
+#   · 压白场 → 比 TONE_WHITE 还亮的（脸）直接实心，**这就是"脸部要更实"**。
+# 调这俩时一定按 18pt 看（放大看反而看不出差别）。
+TONE_BLACK = 0.18
+TONE_WHITE = 0.55
+TONE_GAMMA = 1.0     # 中间调再额外抬一档（<1 更实），1.0 = 不抬
 
 # 取景：主体高度的前百分之多少。再往下就全是胸口了。
 CROPS = {"jimiSmile": 0.94, "jimiFacepalm": 0.97}
@@ -83,39 +108,42 @@ def subject(path: Path, crop: float):
 
 
 def quantize(mask, lum, side: int) -> np.ndarray:
-    """四级灰度 → alpha 等级 0..3（暗 = 3）。"""
+    """照片 → alpha 等级 0..3。见模块开头：**亮 = 实心、暗 = 透明** + 一道色阶。"""
     ys, xs = np.nonzero(mask)
     x0, x1, y0, y1 = int(xs.min()), int(xs.max()), int(ys.min()), int(ys.max())
     bw, bh = x1 - x0 + 1, y1 - y0 + 1
 
-    def fit(arr):
+    def place(arr):
+        """把主体包围盒裁出来、按 FILL 缩放进 side×side 的画布居中。"""
         sub = arr[y0:y1 + 1, x0:x1 + 1].astype(np.float32)
         # 掩膜是 0/1、亮度已经是 0-255 —— 只有前者才需要放大到 0-255。
-        # （第一版对亮度也乘了 255，clip 之后整张图变成纯白，四级占比 100% 落在最低级。）
         if float(sub.max()) <= 1.0001:
             sub = sub * 255.0
         img = Image.fromarray(np.clip(sub, 0, 255).astype(np.uint8))
-        tw = max(1, int(round(bw * side / max(bw, bh))))
-        th = max(1, int(round(bh * side / max(bw, bh))))
+        target = side * FILL
+        tw = max(1, int(round(bw * target / max(bw, bh))))
+        th = max(1, int(round(bh * target / max(bw, bh))))
         if tw > side:
             tw = side
-            th = max(1, int(round(bh * side / bw)))
+            th = max(1, int(round(bh * target / bw)))
         if th > side:
             th = side
-            tw = max(1, int(round(bw * side / bh)))
+            tw = max(1, int(round(bw * target / bh)))
         tile = Image.new("L", (side, side), 0)
-        resized = img.resize((tw, th), Image.LANCZOS)
-        tile.paste(resized, ((side - tw) // 2, (side - th) // 2))
+        tile.paste(img.resize((tw, th), Image.LANCZOS), ((side - tw) // 2, (side - th) // 2))
         return np.asarray(tile).astype(float)
 
-    m = fit(mask) > 127.0
+    # 分位只统计**主体内部**的像素，否则背景的亮/暗会把动态范围带偏。
     vals = lum[y0:y1 + 1, x0:x1 + 1][mask[y0:y1 + 1, x0:x1 + 1]]
     lo, hi = np.percentile(vals, 6), np.percentile(vals, 94)
-    t = np.clip((fit(lum) - lo) / max(1e-6, hi - lo), 0, 1)
+    t = np.clip((place(lum) - lo) / max(1e-6, hi - lo), 0.0, 1.0)
 
-    lvl = np.round((1.0 - t) * (LEVELS - 1))       # 暗 = 高等级
-    lvl = np.where(m, lvl, 0).astype(np.uint8)
-    return lvl
+    # 色阶：t 越接近 1（照片里越亮）→ 等级越高（越实心）。
+    t = np.clip((t - TONE_BLACK) / max(1e-6, TONE_WHITE - TONE_BLACK), 0.0, 1.0) ** TONE_GAMMA
+
+    # 乘主体**软边**（而不是硬掩膜）→ 轮廓自带抗锯齿，不会有一圈锯齿。
+    alpha = t * (place(mask.astype(float)) / 255.0)
+    return np.round(alpha * (LEVELS - 1)).astype(np.uint8)
 
 
 def pack(levels: np.ndarray) -> str:
@@ -161,7 +189,7 @@ def main() -> int:
     OUT.write_text(
         "import AppKit\n\n"
         "// 由 `Scripts/make_menubar_icons.py` 从用户提供的照片生成，**不要手改**。\n"
-        "// 四级灰度（暗处 = 实心、亮处 = 透明）按 2bit/像素打包成 base64：\n"
+        "// 4 级 alpha（照片里亮的脸 = 实心、暗的五官 = 透明）按 2bit/像素打包成 base64：\n"
         "// 为什么不用图片资源 —— 这样 App 里不多一份资源，本文件也仍然只依赖 AppKit，\n"
         "// 能像 MenuBarIcon.swift 一样单独 swiftc 出来 dump 成 PNG 做目视校对。\n"
         "enum MenuBarIconBitmaps {\n"

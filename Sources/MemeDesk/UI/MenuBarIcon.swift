@@ -66,7 +66,7 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
 
     /// 渲染成模板图。`pointSize` 是画布边长（点）。
     ///
-    /// 「基米」那两个是**从照片量化出来的四级灰度图**（暗处实心、亮处透明），
+    /// 「基米」那两个是**从照片色调映射出来的**（照片里亮的实心、暗的透明，4 级 alpha），
     /// 其余走矢量。两者都是模板图，颜色交给系统。
     func image(pointSize: CGFloat = 18) -> NSImage {
         if let bitmap = Self.decodedBitmap(self) {
