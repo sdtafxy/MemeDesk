@@ -4,6 +4,50 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-09-21
+
+Six defects that the 0.1.3 self-audit turned up, all of them long-standing and none of them
+obvious from reading the code.
+
+### Fixed
+
+- **`hideOnFullscreen` could never fire on a stacked display.** `CGWindowListCopyWindowInfo`
+  returns Quartz bounds (origin at the top-left of the primary display, y downwards) and those
+  were compared for **exact equality** against `NSScreen.frame`, which is Cocoa coordinates
+  (origin bottom-left, y upwards). The two coincide on a single display — which is why it looked
+  correct — but a display arranged above or below the primary mirrors y, so the comparison can
+  never hold. The rect is converted first, and "covers this screen" is now a tolerance test.
+- **Thumbnail decoding was running on the main thread.** `ThumbnailCache` is a `@MainActor`
+  class, and the `static func` it called was inferred to be main-actor isolated as well — so the
+  `await` inside `.task` was in fact a synchronous decode on the main thread, once per row. The
+  decoders are `nonisolated` now and are reached through `Task.detached`, and probing the media
+  kind (a file-header read) moved into the background with them. Measured: eight large GIFs
+  decode in 123 ms while the main thread's longest stall is 3.0 ms.
+- **A frame with `dt == 0` discarded all motion state.** `FrameTicker.reschedule()` zeroes
+  `lastTimestamp` every time it restarts, so the first tick after any restart — pause/resume,
+  frame-rate negotiation, leaving fullscreen — arrives with dt 0, and that case shared a guard
+  with "motion has been switched off", which clears the state. Accumulated velocity and phase
+  were thrown away, so a sticker already asleep on the floor dropped a second time after a
+  pause. Only a genuinely disabled motion clears state now.
+- **The bulk hide/show button read "Show all" on an empty desk.** `allSatisfy` returns true for
+  an empty array. It now tests for empty first, and is disabled when there is nothing to act on.
+  `MDIconButtonStyle` also dims while disabled — a `.disabled()` button that still looks
+  pressable is worse than one that is not disabled at all.
+- **Double-click to pause did not exist.** Both READMEs have documented "double-click: pause or
+  resume that one instance" for some time, but `mouseDown` never looked at `clickCount` and
+  `onTogglePlay` was never called. It is wired up now, and the second click of a double-click no
+  longer opens a drag, so a small twitch of the mouse cannot shift the window.
+- `Stage.update` had two branches that did the same thing (`markDirty()` is `scheduleSave()`).
+  Collapsed, with the meaning of `publish` written down.
+
+### Notes
+
+- Every fix has a small harness that compiles the real source files and asserts against measured
+  values, including a negative assertion that reproduces the multi-monitor bug and a timing test
+  that shows the decode is off the main thread.
+- Two of these still want a human: the dimmed button's appearance, and the double-click itself.
+  Neither can be checked without eyes and hands on a real desk.
+
 ## [0.1.4] - 2026-09-21
 
 ### Added
