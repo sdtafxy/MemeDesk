@@ -235,7 +235,8 @@ private struct ActiveCard: View {
         .task {
             guard let bookmark = stage.config(for: summary.id)?.bookmark,
                   let url = Bookmark.url(from: bookmark) else { return }
-            thumb = await ThumbnailCache.shared.image(for: url, kind: MediaProbe.kind(of: url))
+            // 这一路手上没有现成的类型，交给后台顺手探测（读文件头也是 IO）
+            thumb = await ThumbnailCache.shared.image(for: url)
         }
     }
 }

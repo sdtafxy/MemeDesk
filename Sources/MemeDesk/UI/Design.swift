@@ -98,8 +98,12 @@ struct MDPrimaryButtonStyle: ButtonStyle {
 }
 
 /// 图标方按钮：菜单栏面板底部的六宫格、行内的小图标按钮。
+///
+/// 禁用态会压暗 —— `ButtonStyle` 拿不到 `isEnabled`，只能从环境里读；
+/// 少了这一步，`.disabled()` 的按钮看起来仍然可以点，比不禁用更糟（空桌面时的"全部收起"就是这样）。
 struct MDIconButtonStyle: ButtonStyle {
     var role: ButtonRole? = nil
+    @Environment(\.isEnabled) private var isEnabled
 
     private var fg: Color {
         role == .destructive ? Color(nsColor: .systemRed) : MD.ink
@@ -108,11 +112,13 @@ struct MDIconButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(configuration.isPressed ? MD.inkSub : fg)
+            .opacity(isEnabled ? 1 : 0.38)
             .frame(maxWidth: .infinity)
             .frame(height: 44)
             .background(
                 RoundedRectangle(cornerRadius: MD.cornerM, style: .continuous)
                     .fill(configuration.isPressed ? MD.surfaceActive : MD.surface)
+                    .opacity(isEnabled ? 1 : 0.55)
             )
             .contentShape(RoundedRectangle(cornerRadius: MD.cornerM, style: .continuous))
     }

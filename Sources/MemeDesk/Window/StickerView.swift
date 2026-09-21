@@ -35,6 +35,8 @@ final class StickerView: NSView {
     private var dragStartMouse: NSPoint = .zero
     private var dragStartVisualFrame: CGRect = .zero
     private var isResizing = false
+    /// 双击已经处理过了 —— 这一轮不要再当成拖拽（见 `mouseDown`）。
+    private var suppressDrag = false
 
     init(id: UUID, frame frameRect: NSRect) {
         self.stickerID = id
@@ -253,6 +255,15 @@ final class StickerView: NSView {
         // 没有窗口就等于没有正确的坐标系，直接放弃本次拖拽
         guard window != nil else { return }
         onSelect?()
+        // 双击 = 暂停 / 继续这个素材。这也是 `onTogglePlay` 唯一的调用点 ——
+        // 之前它一直"接了线没人调"，所以文档里写的双击暂停其实并不存在。
+        if event.clickCount == 2 {
+            onTogglePlay?()
+            // 双击的第二下不能顺带开启一次拖拽，否则鼠标只要抖一点窗口就跟着跑。
+            suppressDrag = true
+            return
+        }
+        suppressDrag = false
         dragStartMouse = NSEvent.mouseLocation
         dragStartVisualFrame = contentFrameInScreen
         isResizing = event.modifierFlags.contains(.option)
@@ -268,6 +279,7 @@ final class StickerView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
+        guard !suppressDrag else { return }
         let mouse = NSEvent.mouseLocation
         let dx = mouse.x - dragStartMouse.x
         let dy = mouse.y - dragStartMouse.y
@@ -283,6 +295,7 @@ final class StickerView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         isResizing = false
+        suppressDrag = false
     }
 
     override func scrollWheel(with event: NSEvent) {

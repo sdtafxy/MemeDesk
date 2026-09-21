@@ -5,6 +5,11 @@ import Foundation
 import ImageIO
 
 /// 缩略图缓存。菜单栏里几十个表情包来回滚动时，不能每张都重新解码。
+///
+/// ⚠️ 这个类整体是 `@MainActor`（缓存要主线程独占），但**解码必须在后台**。
+/// 以前 `image(for:)` 虽然标了 `async`，里面走的却是同一个类的 `static func` ——
+/// 那也会被推断成主 actor 隔离，于是 `.task` 里其实是**同步跑在主线程**上的，
+/// 素材库/面板滚动时每个单元格都解码一次，必然掉帧。现在解码统一走 `Task.detached`。
 @MainActor
 final class ThumbnailCache {
     static let shared = ThumbnailCache()
@@ -22,18 +27,29 @@ final class ThumbnailCache {
     }
 
     /// 异步取出（必要时解码）缩略图。
-    func image(for url: URL, kind: MediaKind, pixel: Int = 88) async -> NSImage? {
+    ///
+    /// `kind` 传 nil 时会**在后台**顺手探测 —— 探测本身要读文件头，
+    /// 也不该占主线程。
+    func image(for url: URL, kind: MediaKind? = nil, pixel: Int = 88) async -> NSImage? {
         if let hit = cached(url: url) { return hit }
-        let result: NSImage?
-        switch kind {
-        case .video:
-            result = await Self.videoThumbnail(url: url, pixel: pixel)
-        default:
-            result = Self.imageThumbnail(url: url, pixel: pixel)
-        }
-        guard let image = result else { return nil }
-        store(image, for: url.path)
+        let key = url.path
+        let box = await Task.detached(priority: .utility) {
+            let resolved = kind ?? MediaProbe.kind(of: url)
+            return ThumbnailBox(decoded: resolved == .video
+                                ? await Self.videoThumbnail(url: url, pixel: pixel)
+                                : Self.imageThumbnail(url: url, pixel: pixel))
+        }.value
+        guard let image = box.decoded else { return nil }
+        store(image, for: key)
         return image
+    }
+
+    /// 只是为了把 `NSImage` 送过后台 → 主线程的边界。
+    ///
+    /// `NSImage` 不是 `Sendable`（它是 NSObject 子类），但这里传的是**后台刚建好、
+    /// 还没有别人引用过**的实例，跨过去之后只在主线程用，不存在并发写。
+    private struct ThumbnailBox: @unchecked Sendable {
+        let decoded: NSImage?
     }
 
     private func store(_ image: NSImage, for key: String) {
@@ -45,7 +61,7 @@ final class ThumbnailCache {
         }
     }
 
-    private static func imageThumbnail(url: URL, pixel: Int) -> NSImage? {
+    private nonisolated static func imageThumbnail(url: URL, pixel: Int) -> NSImage? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -57,7 +73,7 @@ final class ThumbnailCache {
         return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
     }
 
-    private static func videoThumbnail(url: URL, pixel: Int) async -> NSImage? {
+    private nonisolated static func videoThumbnail(url: URL, pixel: Int) async -> NSImage? {
         let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true

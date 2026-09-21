@@ -42,10 +42,20 @@ final class MotionEngine {
                 screen: CGRect,
                 mouse: CGPoint) -> CGPoint {
         let center = CGPoint(x: frame.midX, y: frame.midY)
-        guard motion != .still, speed > 0.001, dt > 0, screen.width > 0 else {
+
+        // 运动被关掉（或屏幕尺寸拿不到）—— 这才是真的"不再需要状态"，清掉。
+        guard motion != .still, speed > 0.001, screen.width > 0 else {
             states.removeValue(forKey: id)
             return center
         }
+
+        // ⚠️ `dt == 0` 只是"这一帧没有推进时间"，**不是**"运动被关掉了"，所以不能清状态。
+        //
+        // `FrameTicker.reschedule()` 每次都会把 `lastTimestamp` 归零，于是重启后的第一帧
+        // dt 恒为 0；而定时器在暂停/恢复、帧率协商、全屏切换时都会重启。
+        // 以前这里和上面共用一个 guard，把累积的速度、相位、游走目标全丢掉 ——
+        // 表现就是"暂停再恢复后，已经在吊床上静止的贴纸又掉一次"。
+        guard dt > 0 else { return center }
 
         var state = states[id] ?? State()
         // 外部改动过位置（拖拽或窗口布局）→ 以外部为准重新锚定，避免跳回旧坐标

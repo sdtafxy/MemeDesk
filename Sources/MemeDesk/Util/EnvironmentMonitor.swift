@@ -78,12 +78,19 @@ final class EnvironmentMonitor {
     }
 
     /// 前台应用是否正占满某块屏幕（全屏看片 / PPT 演讲）。
+    ///
+    /// ⚠️ `CGWindowListCopyWindowInfo` 给的 bounds 是 **Quartz 坐标**（原点在主屏左上、y 向下），
+    /// 而 `NSScreen.frame` 是 **Cocoa 坐标**（原点在主屏左下、y 向上）。
+    /// 两者只在单屏时恰好相等 —— 显示器上下堆叠时 y 是镜像的，
+    /// 原来的"精确相等"判断就永远不成立，`hideOnFullscreen` 等于失效。必须先换算。
     var frontmostAppIsFullscreen: Bool {
         guard let app = NSWorkspace.shared.frontmostApplication else { return false }
+        guard let primaryHeight = NSScreen.screens.first?.frame.height else { return false }
         let pid = app.processIdentifier
         let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
                                               kCGNullWindowID) as? [[String: Any]] ?? []
         let screens = NSScreen.screens.map { $0.frame }
+
         for window in list where (window[kCGWindowOwnerPID as String] as? Int32) == pid {
             guard let bounds = window[kCGWindowBounds as String] as? [String: Any],
                   let x = (bounds["X"] as? NSNumber)?.doubleValue,
@@ -91,10 +98,31 @@ final class EnvironmentMonitor {
                   let w = (bounds["Width"] as? NSNumber)?.doubleValue,
                   let h = (bounds["Height"] as? NSNumber)?.doubleValue
             else { continue }
-            let rect = CGRect(x: x, y: y, width: w, height: h)
-            if screens.contains(where: { $0.equalTo(rect) }) { return true }
+            let quartz = CGRect(x: x, y: y, width: w, height: h)
+            let rect = Self.cocoaRect(fromQuartz: quartz, primaryHeight: primaryHeight)
+            if screens.contains(where: { Self.covers($0, rect) }) { return true }
         }
         return false
+    }
+
+    /// Quartz 全局坐标 → Cocoa 全局坐标。
+    ///
+    /// 不是 `private`：这两个纯函数是这个文件里唯一有逻辑的部分，
+    /// 放开才能在外部 harness 里对着真实数值断言（见 `PROJECT_CONTEXT.md` 15.3）。
+    static func cocoaRect(fromQuartz rect: CGRect, primaryHeight: CGFloat) -> CGRect {
+        CGRect(x: rect.minX,
+               y: primaryHeight - rect.maxY,
+               width: rect.width,
+               height: rect.height)
+    }
+
+    /// 窗口是否**盖住**了整块屏幕。用容差而不是精确相等：
+    /// 全屏窗口的实际 bounds 有时会差一两个点（阴影、圆角、四舍五入）。
+    static func covers(_ screen: CGRect, _ window: CGRect, tolerance: CGFloat = 2) -> Bool {
+        abs(window.minX - screen.minX) <= tolerance
+            && abs(window.minY - screen.minY) <= tolerance
+            && abs(window.width - screen.width) <= tolerance
+            && abs(window.height - screen.height) <= tolerance
     }
 
     private func notify() { onEnvironmentChange?() }

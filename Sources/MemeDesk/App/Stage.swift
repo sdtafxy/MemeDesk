@@ -219,6 +219,11 @@ final class Stage: ObservableObject {
     }
 
     /// 唯一的写入口：改数据 → 应用到窗口 → 更新 UI 快照 → 落盘。
+    ///
+    /// `publish` 只决定**要不要重算给 SwiftUI 的快照**（运动每帧改坐标，重算 body 太贵）。
+    /// 落盘两条路都要走：`markDirty()` 本来就是 `scheduleSave()`，
+    /// 以前写成 `if publish { markDirty() } else { scheduleSave() }` 是两个等价分支，
+    /// 看着像有区别、其实没有 —— 现在合并掉。
     func update(_ id: UUID, publish: Bool = true, mutate: (inout StickerConfig) -> Void) {
         guard let i = index(of: id) else { return }
         unfreezeArchive()
@@ -226,7 +231,7 @@ final class Stage: ObservableObject {
         let updated = configs[i]
         controllers[id]?.apply(config: updated)
         if publish { publishSummaries() }
-        if publish { markDirty() } else { scheduleSave() }
+        scheduleSave()
     }
 
     func setHidden(_ id: UUID, _ hidden: Bool) {

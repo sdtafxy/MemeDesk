@@ -163,9 +163,13 @@ struct MenuBarRootView: View {
                 }
             }
             HStack(spacing: 6) {
-                let allHidden = stage.summaries.allSatisfy { $0.isHidden }
+                // ⚠️ 空桌面时 `allSatisfy` 对空数组返回 **true**，会让按钮错显成「全部显示」。
+                // 先判空，再判"是否全都收起"。
+                let isEmpty = stage.summaries.isEmpty
+                let allHidden = !isEmpty && stage.summaries.allSatisfy { $0.isHidden }
                 footerButton(allHidden ? loc[.showAll] : loc[.hideAll],
-                             icon: allHidden ? "eye" : "eye.slash") {
+                             icon: allHidden ? "eye" : "eye.slash",
+                             enabled: !isEmpty) {
                     if allHidden { stage.showAll() } else { stage.hideAllTemporary() }
                 }
                 footerButton(clearArmed ? loc[.clearDeskConfirm] : loc[.clearDesk],
@@ -203,6 +207,7 @@ struct MenuBarRootView: View {
     private func footerButton(_ title: String, icon: String,
                               role: ButtonRole? = nil,
                               badge: Bool = false,
+                              enabled: Bool = true,
                               help: String? = nil,
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -224,6 +229,7 @@ struct MenuBarRootView: View {
             .frame(height: 42)
         }
         .buttonStyle(MDIconButtonStyle(role: role))
+        .disabled(!enabled)
         .help(help ?? (badge ? loc[.updateBadgeTip] : title))
     }
 
@@ -325,7 +331,8 @@ private struct StickerRow: View {
         guard let bookmark = stage.config(for: summary.id)?.bookmark,
               let url = Bookmark.url(from: bookmark)
         else { return }
-        let image = await ThumbnailCache.shared.image(for: url, kind: MediaProbe.kind(of: url))
+        // 不在这里探测类型 —— 读文件头也是 IO，交给后台那一步顺手做。
+        let image = await ThumbnailCache.shared.image(for: url)
         await MainActor.run { thumb = image }
     }
 }
