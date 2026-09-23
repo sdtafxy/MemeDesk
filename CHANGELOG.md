@@ -72,7 +72,14 @@ None of the following had ever been verified by anything.
 - **The artefacts were arm64-only.** `lipo -info` on the shipped binary says as much; CI runs on
   an arm64 runner so it could never notice; and the README claims macOS 13, which plenty of Intel
   Macs run. `build.sh` and the Makefile build `--arch arm64 --arch x86_64` now, and abort if the
-  result is not universal.
+  result is not universal. Note that the first attempt at this failed on CI in a way worth
+  recording: `cp "$ROOT/.build/release/MemeDesk"` copied a **thin** binary even though the log
+  above it said "Create universal binary MemeDesk" and "Build succeeded". `.build/release` is a
+  symlink to whatever the *previous* build produced, and a preceding single-architecture
+  `swift build` uses a different (older) build system with a different product directory, so the
+  symlink still pointed at the arm64 file. The script now locates the product by inspecting it
+  with `lipo` and skipping `*.dSYM/*` — the DWARF file inside a dSYM is also a universal Mach-O
+  with the same name.
 - **Ed25519 was wired on one side only.** The public key in `Info.plist` is empty, so a published
   `.ed25519` would never be checked — decoration. In the other direction, filling in the key
   without configuring the CI secret makes every update fail hard at `signatureUnavailable`.

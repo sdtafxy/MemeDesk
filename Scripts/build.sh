@@ -19,7 +19,6 @@ fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="MemeDesk"
-BUILD_DIR="$ROOT/.build/release"
 DIST="$ROOT/dist"
 APP="$DIST/$APP_NAME.app"
 CONTENTS="$APP/Contents"
@@ -38,11 +37,38 @@ fi
 echo "==> Building $APP_NAME (release, arm64 + x86_64)"
 swift build -c release --package-path "$ROOT" --arch arm64 --arch x86_64
 
+# ⚠️ **不要相信 `.build/release` 这个软链**。
+#
+# 它指向的是"上一次构建"的产物目录。而本机/CI 上如果之前跑过一次**单架构**
+# `swift build`，那次用的是旧的原生构建系统，产物落在别处；随后 `--arch` 多架构
+# 构建走的是新版 `swiftbuild`，两处不是一个目录 —— 软链还指着旧的 arm64 那份。
+# 实测（CI run 35830983650）：日志里明明有 "Create universal binary MemeDesk"、
+# "Build succeeded"，`cp` 到的却是单架构文件，架构断言当场炸掉。
+#
+# 所以直接按**内容**找：`lipo` 同时报出 arm64 与 x86_64 的那个才是真产物。
+# ⚠️ 必须跳过 `.dSYM`：符号文件里那份 DWARF **也是**双架构 Mach-O，名字还一样，
+# 不管的话会把它当成可执行文件拷进 MacOS/（实测踩过一次）。
+BIN=""
+while IFS= read -r f; do
+  case "$f" in *.dSYM/*) continue ;; esac
+  archs="$(lipo -archs "$f" 2>/dev/null || true)"
+  case "$archs" in
+    *arm64*x86_64*|*x86_64*arm64*) BIN="$f"; break ;;
+  esac
+done < <(find "$ROOT/.build" -type f -name "$APP_NAME" 2>/dev/null)
+
+if [ -z "$BIN" ]; then
+  echo "error: 在 $ROOT/.build 里找不到双架构的 $APP_NAME。" >&2
+  echo "       构建看似成功了，但产物不是 universal —— Intel Mac 装不上。" >&2
+  exit 1
+fi
+echo "    binary: ${BIN#"$ROOT"/}"
+
 echo "==> Assembling $APP"
 rm -rf "$APP"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 
-cp "$BUILD_DIR/$APP_NAME" "$CONTENTS/MacOS/$APP_NAME"
+cp "$BIN" "$CONTENTS/MacOS/$APP_NAME"
 cp "$ROOT/Resources/Info.plist" "$CONTENTS/Info.plist"
 printf 'APPL????' > "$CONTENTS/PkgInfo"
 
