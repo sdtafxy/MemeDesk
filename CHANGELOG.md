@@ -4,6 +4,104 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2026-09-23
+
+A full self-audit turned up fourteen defects across the state machine, the updater and the
+release tooling. Two of them were the kind that quietly do nothing at all, and four were in the
+CI and packaging path, which had never verified anything about what it produced.
+
+### Fixed
+
+- **Every preference change was silently discarded whenever "restore last desk" was off.**
+  `Stage.saveNow()` opened with `guard !archiveIsFrozen else { return }`. The freeze exists so
+  that an empty-desk start is not written over the archive, but it swallowed every preference
+  write as well — including the one that turns `restoreSession` back on, which is the very action
+  the freeze was added to protect. To see it: turn the setting off, quit, relaunch (empty desk),
+  turn it back on, quit, relaunch — the desk is still empty and the setting is off again. The
+  freeze now covers only `stickers`: preferences are written while frozen, and the layout that is
+  already on disk is carried over untouched.
+- **"Automatically download and install updates" never downloaded anything.** `checkForUpdates`
+  set `busy = true` with `defer { busy = false }` and then called `await download(...)` while
+  `busy` was still true — and `download` opens with `guard !busy else { return }`. The `defer`
+  only runs when the whole async function returns. The check phase is its own function now, which
+  owns `busy` and has released it by the time it returns.
+- **A failed checksum fetch silently skipped verification.** The hash block was an
+  `if let … = try? …` chain: a missing `.sha256` asset, a transient network error swallowed by
+  `try?`, or an unparsable file all fell through to *no verification at all* — while the README
+  says the checksum is always checked. It is a hard failure now: no checksum, no install.
+- **A gravity sticker that had come to rest could not be woken by dragging it.** `MotionEngine`
+  returned early on `state.sleeping` *before* writing the state back, so the re-anchor for an
+  external move was thrown away — the sticker stayed where the mouse let go. The external-move
+  branch clears `sleeping` now. (`wake(_:)` was dead code with no callers at all.)
+- **The 30 Hz motion ticker never idled.** `ensureMotionLoop` asked whether any sticker had
+  `motion != .still`, never whether any of them was still awake, so a desk where everything had
+  settled kept a timer running forever — contradicting both file headers. It now also requires
+  `hasAwakeMotion`, and `Stage.update` wakes a sticker whose **centre** actually moved (centre
+  only: nudging the opacity must not drop a settled sticker again). Fullscreen pause stops the
+  loop too, since every sticker window is ordered out at that point.
+- **`motionSpeed` meant different things in different modes.** Bounce multiplied the slider into
+  the initial velocity *and* into the per-step displacement (so quadratic, but only at startup),
+  gravity squared it consistently, and wander and follow-cursor were linear. Speed is applied
+  once, at the displacement step, for both of the velocity modes now — linear everywhere, and a
+  change mid-flight takes effect immediately.
+- **The sticker menu opened from the menu bar panel** did not freeze motion or lower the window
+  below the menu, both of which the desktop right-click path has always done. A sticker on the
+  floating layer could cover its own menu.
+- **A new sticker could be placed off the left edge of the screen.** The position used `min()` as
+  a clamp: at the maximum default size (600) and a 3.2 aspect the expression goes negative and
+  `min()` picks the *more* out-of-range value. The bound is clamped first now. The stagger offset
+  was also being counted twice — `configs.count` grows inside the loop.
+- **`ThumbnailCache` had no in-flight de-duplication.** Two concurrent requests for the same
+  uncached file both decoded it, and the second `store` left a duplicate key in the LRU order
+  list, so the earlier eviction dropped an entry that was still in use.
+
+### Tooling and CI
+
+None of the following had ever been verified by anything.
+
+- **No one asserted that the version numbers agree.** They are hand-edited in three places and
+  were only ever *read* by the packaging scripts. A tag that disagrees with `Info.plist` produces
+  a release whose app reports an older version — and because `release.version > current` then
+  holds forever, the updater offers the same update on every launch. `Scripts/check_version.sh`
+  asserts the three places agree, and both workflows pass the tag in as well.
+- **The release notes could be published empty, silently.** `awk … | sed … > release_notes.md`
+  writes zero bytes and returns 0 when the CHANGELOG has no `## [` heading, and also when the
+  file is missing entirely — the step still succeeded, so the release went out with an empty
+  body. `Scripts/release_notes.sh` sets `pipefail`, refuses an empty result, and refuses a
+  section whose heading is not the expected version.
+- **The artefacts were arm64-only.** `lipo -info` on the shipped binary says as much; CI runs on
+  an arm64 runner so it could never notice; and the README claims macOS 13, which plenty of Intel
+  Macs run. `build.sh` and the Makefile build `--arch arm64 --arch x86_64` now, and abort if the
+  result is not universal.
+- **Ed25519 was wired on one side only.** The public key in `Info.plist` is empty, so a published
+  `.ed25519` would never be checked — decoration. In the other direction, filling in the key
+  without configuring the CI secret makes every update fail hard at `signatureUnavailable`.
+  `Scripts/check_update_signing.sh` refuses to build when only one of the two sides is set.
+- **`Scripts/check_artifacts.sh` is new** and runs in both workflows. It checks the architecture,
+  `minos` against `LSMinimumSystemVersion`, that all three artefacts exist, the zip's top level,
+  the checksum against the zip, that the DMG mounts, and that the signature's presence matches
+  the public-key configuration.
+- `make_dmg.sh` fell back to version `1.0.0` and `make_zip.sh` to `0.0.0` when the plist could
+  not be read, so a single release could ship two differently-named artefacts. Both fail loudly
+  now. They also self-verify what they produce: the DMG is mounted and unmounted, the written
+  `.sha256` is recomputed and compared, and a signature that came out empty is an error.
+- `generate_samples.py` called `ffmpeg` without checking that it exists, so on a machine without
+  it the script crashed *after* rendering 48 frames, and the "skipped" message below was
+  unreachable.
+- `make_menubar_icons.py` raised a bare `ValueError: zero-size array to reduction operation
+  minimum` when background removal left no subject at all. It now says what happened and what to
+  try instead.
+- CI builds with `-strict-concurrency=complete` now, and checks the release-notes extraction.
+  It previously did neither.
+
+### Notes
+
+- Every item here was reproduced by reading the code or by running the command. The two most
+  severe had never been noticed because each of them degrades silently instead of failing.
+- ⚠️ Shell gotcha worth remembering: a `$VAR` immediately followed by a full-width character
+  (`$OUT（`) makes bash swallow the multi-byte bytes into the variable name and fail with a
+  confusing `unbound variable`. Five spots in the new scripts needed `${VAR}`.
+
 ## [0.1.6] - 2026-09-21
 
 The two "Jimi" menu bar faces were rendering as a pale, hollow ghost of the photographs. The
