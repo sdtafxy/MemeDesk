@@ -150,6 +150,26 @@ final class UpdateService: ObservableObject {
             return
         }
         guard !busy else { return }
+
+        let pending = await performCheck(repository: repository, userInitiated: userInitiated)
+
+        // ⚠️ 自动安装必须在 `performCheck` **返回之后**再做 —— 那才是 `busy` 已经复位的时刻。
+        //
+        // 以前这句是写在同一个函数体里的：外层 `busy = true` 配的 `defer { busy = false }`
+        // 要等整个 async 函数返回才执行，于是 `download` 一进门就撞上它自己的
+        // `guard !busy`，立刻返回 —— **"自动安装更新"这个开关从来没有下载过任何东西**，
+        // 而且一声不吭（`status` 停在 `.available`，看起来像"等用户点安装"）。
+        if let pending, Stage.shared.preferences.autoInstallUpdates {
+            await download(pending, thenInstall: true)
+        }
+    }
+
+    /// 检查阶段。**`busy` 只在这个函数体内持有**，返回时一定已经复位 ——
+    /// 这样它调完再让调用方去 `download` 就不会自锁。
+    ///
+    /// - Returns: 确认有更新可装时返回那一条；其余情况（无 Release / 已最新 / 被忽略 /
+    ///   没有 zip 资产 / 出错）一律 nil。
+    private func performCheck(repository: String, userInitiated: Bool) async -> ReleaseInfo? {
         busy = true
         defer { busy = false }
 
@@ -165,36 +185,35 @@ final class UpdateService: ObservableObject {
             guard let release else {
                 Self.log.notice("仓库里还没有任何 Release")
                 status = .upToDate
-                return
+                return nil
             }
             guard let current = currentVersion, release.version > current else {
                 Self.log.notice("up to date (latest=\(release.versionString, privacy: .public))")
                 status = .upToDate
-                return
+                return nil
             }
             // 用户主动点检查时，不再尊重「忽略此版本」
             if !userInitiated, release.versionString == Stage.shared.preferences.skippedVersion {
                 Self.log.notice("\(release.versionString, privacy: .public) is skipped by the user")
                 status = .upToDate
-                return
+                return nil
             }
             // 确认对方确实比我们新之后，才轮到"有没有更新包"这个问题。
             // 比当前版本旧的 Release 有没有 zip 与我们无关 —— 先判版本就不会误报失败。
             guard release.archiveURL != nil else {
                 Self.log.error("\(release.versionString, privacy: .public) 比当前版本新，但这个 Release 里没有 zip 资产")
                 status = .failed(L(.updateNoArchive))
-                return
+                return nil
             }
 
             Self.log.notice("update available: \(release.versionString, privacy: .public) archive=\(release.archiveName, privacy: .public) checksum=\(release.checksumURL != nil, privacy: .public) signature=\(release.signatureURL != nil, privacy: .public)")
             status = .available(release)
-            if Stage.shared.preferences.autoInstallUpdates {
-                await download(release, thenInstall: true)
-            }
+            return release
         } catch {
             let reason = message(for: error)
             Self.log.error("check failed: \(String(describing: error), privacy: .public) → \(reason, privacy: .public)")
             status = .failed(reason)
+            return nil
         }
     }
 

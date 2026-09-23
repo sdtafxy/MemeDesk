@@ -52,7 +52,10 @@ final class Stage: ObservableObject {
 
     /// 关掉「下次启动恢复上次桌面」之后，这次启动的桌面是空的 ——
     /// 但那个空状态**不能**被写回存档，否则用户只要把开关拨回去，布局已经被覆盖、再也回不来。
-    /// 置位期间一律拒绝落盘，直到用户真的动了桌面（见 `unfreezeArchive()` 的调用点）。
+    ///
+    /// ⚠️ 冻结的**只是桌面布局**（`stickers`），偏好照常落盘 —— 见 `saveNow()`。
+    /// 早先这里是无条件拦住整个 `saveNow()`，结果是"关掉恢复开关之后，设置改动全不落盘"，
+    /// 连把开关拨回去这个补救动作本身都失效。别改回去。
     private var archiveIsFrozen = false
 
     private init() {
@@ -127,6 +130,9 @@ final class Stage: ObservableObject {
     func add(urls: [URL]) async {
         guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
         var addedCount = 0
+        // ⚠️ 要在循环外取一次。循环里每 append 一个 `configs.count` 就 +1，
+        // 再加上 `offset` 等于把偏移算了两遍，错位步进就不是设计的那个样子了。
+        let baseCount = configs.count
         for (offset, url) in urls.enumerated() {
             guard FileManager.default.fileExists(atPath: url.path) else { continue }
             let kind = MediaProbe.kind(of: url)
@@ -137,9 +143,16 @@ final class Stage: ObservableObject {
             let base = preferences.defaultSize
             let width = base * aspect
             let height = base
-            let step = CGFloat((configs.count + offset) % 10) * 26
-            let x = min(screen.visibleFrame.minX + 90 + step, screen.visibleFrame.maxX - width - 20)
-            let y = min(screen.visibleFrame.minY + 90 + step, screen.visibleFrame.maxY - height - 20)
+            let step = CGFloat((baseCount + offset) % 10) * 26
+            // ⚠️ 不能拿 `min()` 当 clamp：素材比屏幕还宽时 `maxX - width - 20` 会**小于** `minX`，
+            // `min()` 恰恰选中更靠外的那个，新贴纸直接落到屏幕左侧之外
+            // （默认尺寸上限 600 × 宽高比上限 3.2 = 1920pt，1440 宽的屏必中）。
+            // 先把上界自身夹回可见区域，再夹期望位置。
+            let vf = screen.visibleFrame
+            let limitX = max(vf.minX, vf.maxX - width - 20)
+            let limitY = max(vf.minY, vf.maxY - height - 20)
+            let x = min(vf.minX + 90 + step, limitX)
+            let y = min(vf.minY + 90 + step, limitY)
 
             let config = StickerConfig(
                 name: url.deletingPathExtension().lastPathComponent,
@@ -227,11 +240,21 @@ final class Stage: ObservableObject {
     func update(_ id: UUID, publish: Bool = true, mutate: (inout StickerConfig) -> Void) {
         guard let i = index(of: id) else { return }
         unfreezeArchive()
+        let before = configs[i].frame
         mutate(&configs[i])
         let updated = configs[i]
         controllers[id]?.apply(config: updated)
         if publish { publishSummaries() }
         scheduleSave()
+        // 位置被外部改过（拖拽 / 窗口布局）→ 解睡眠，并确保运动循环还活着。
+        //
+        // ⚠️ 只在**中心点**真的变了时才做。`ensureMotionLoop` 现在会把"全部睡眠"当成
+        // 不需要循环，所以这里必须补上"被拖动了就重新开张"这一半，否则醒不过来；
+        // 而反过来，如果无条件唤醒，调个透明度就会把已经落定的重力贴纸弄掉下来。
+        if updated.frame.center != before.center {
+            motionEngine.wake(id)
+            ensureMotionLoop()
+        }
     }
 
     func setHidden(_ id: UUID, _ hidden: Bool) {
@@ -267,6 +290,21 @@ final class Stage: ObservableObject {
     /// 菜单栏面板里复用桌面右键菜单。
     func menu(for id: UUID) -> NSMenu? {
         controllers[id]?.buildMenu()
+    }
+
+    /// 弹出某个贴纸菜单前后要做的两件事 —— 与桌面右键那条路保持一致：
+    /// `StickerView.rightMouseDown` → `onMenuInteraction` → 控制器。
+    ///
+    /// ① **冻结运动**：菜单锚在屏幕上，窗口一动就会"追着人跑"；
+    /// ② **把窗口层级临时压到菜单底下**：菜单在 `popUpMenu(101)`，而浮动层的贴纸在
+    ///    `screenSaver(1000)`，不压就会盖住自己的菜单。
+    ///
+    /// ⚠️ 早先只有桌面那条路做了这两件事，面板这条路（`showStickerMenu`）漏了。
+    /// `active == false` 那半必须**无条件**执行 —— 控制器可能已被"从桌面移除"销毁，
+    /// 所以这里用可选链，而配对用的是永不析构的 `Stage` 自己。
+    func applyMenuPresentation(_ id: UUID, _ active: Bool) {
+        setMenuInteraction(active)
+        controllers[id]?.applyMenuPresentation(active)
     }
 
     func toggleMirror(_ id: UUID) { update(id) { $0.mirrored.toggle() } }
@@ -356,11 +394,17 @@ final class Stage: ObservableObject {
     }
 
     private func ensureMotionLoop() {
+        // 需要 30Hz 的条件。两条容易被忽略的：
+        //   · `fullscreenPauseActive` 时所有贴纸窗口都已 orderOut，再逐帧 setFrame 纯属浪费；
+        //   · **全部睡眠**（比如重力都落定了）也算不需要 —— 否则会留一条永不空转的定时器。
+        //     睡眠项要被重新唤醒，靠 `update` 里那半（拖拽 → `wake` + 这里）。
+        let motionIDs = configs.filter { !$0.isHidden && $0.motion != .still }.map(\.id)
         let needed = !globallyPaused
             && menuInteractionCount == 0
             && !environment.sleeping
+            && !fullscreenPauseActive
             && preferences.motionSpeed > 0
-            && configs.contains { !$0.isHidden && $0.motion != .still }
+            && motionEngine.hasAwakeMotion(motionIDs)
         if needed {
             FrameTicker.shared.add(id: motionTickerID, fps: 30) { [weak self] dt in self?.motionTick(dt) }
         } else {
@@ -449,10 +493,24 @@ final class Stage: ObservableObject {
     }
 
     func saveNow() {
-        guard !archiveIsFrozen else { return }
-        let snapshot = Snapshot(stickers: configs, preferences: preferences)
+        // ⚠️ 冻结拦的**只是桌面布局**，不是偏好。
+        //
+        // 以前这里是无条件的 `guard !archiveIsFrozen else { return }`。于是只要用户关掉
+        // 「下次启动恢复上次桌面」，此后每次启动都处在冻结态 —— 在设置里改任何东西都不会落盘，
+        // **连把那个开关拨回 ON 也不行**（`prefSink` 只是调 `saveNow()`，被 guard 吞掉）。
+        // 而冻结本来就是为保这条补救路径才加的，结果恰恰把它堵死了。
+        //
+        // 现在冻结期照常写偏好，只是把盘上那份 stickers 原样保留：
+        // 桌面布局不会被空状态覆盖，偏好改动立刻生效。
+        let stickers = (archiveIsFrozen ? readSnapshot()?.stickers : nil) ?? configs
+        let snapshot = Snapshot(stickers: stickers, preferences: preferences)
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         try? data.write(to: stateFile, options: .atomic)
+    }
+
+    private func readSnapshot() -> Snapshot? {
+        guard let data = try? Data(contentsOf: stateFile) else { return nil }
+        return try? JSONDecoder().decode(Snapshot.self, from: data)
     }
 
     /// 结构性变化：稍等一下再写，避免爆炸式 IO。

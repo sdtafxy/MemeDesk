@@ -17,17 +17,40 @@ jobs:
       - name: Show toolchain
         run: swift --version
 
-      - name: Build
-        run: swift build -c release
+      # 版本号是三处手改的，而运行时没有任何地方校验它。
+      # 不查的话，"打了 tag 却忘改 plist"会发出一个版本不符的 Release，
+      # 而更新器 `version > current` 恒真 → 每次启动都提示装同一个更新。
+      - name: Check version consistency
+        run: ./Scripts/check_version.sh
 
-      - name: Assemble app bundle
+      # 公钥与私钥必须两头一致：只改一半会让用户要么更不了（配了公钥没签名），
+      # 要么以为签了其实没验（有签名没公钥）。
+      - name: Check update-signing configuration
+        run: ./Scripts/check_update_signing.sh
+
+      # ⚠️ 必须带 `-strict-concurrency=complete`。
+      # 本机的并发诊断取决于 SDK 里的 @Sendable 标注，与 CI runner 未必一致；
+      # 没有这一步，"本地绿、CI 绿、但严格模式有问题"的改动会整个溜过去。
+      - name: Build (strict concurrency)
+        run: swift build -c release -Xswiftc -strict-concurrency=complete
+
+      - name: Assemble app bundle (universal)
         run: ./Scripts/build.sh
+
+      # 发布说明是从 CHANGELOG 抽的，抽不到就会发出一个**空正文**的 Release。
+      # 在这里提前红，而不是等发版时才发现。
+      - name: Check release notes extract
+        run: ./Scripts/release_notes.sh "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)" /tmp/release-notes.md
 
       - name: Package DMG
         run: ./Scripts/make_dmg.sh
 
       - name: Package update archive (zip)
         run: ./Scripts/make_zip.sh
+
+      # 上面两个脚本只管产出，这里才是复核：架构、zip 顶层、sha256、签名一致性。
+      - name: Check artefacts
+        run: ./Scripts/check_artifacts.sh
 
       - name: Upload DMG
         uses: actions/upload-artifact@v4

@@ -16,6 +16,8 @@ final class ThumbnailCache {
 
     private var cache: [String: NSImage] = [:]
     private var order: [String] = []
+    /// 正在解码中的任务，按 key 索引。见 `image(for:)` 的说明。
+    private var inFlight: [String: DecodeJob] = [:]
     private let limit = 120
 
     func cached(url: URL) -> NSImage? {
@@ -33,15 +35,41 @@ final class ThumbnailCache {
     func image(for url: URL, kind: MediaKind? = nil, pixel: Int = 88) async -> NSImage? {
         if let hit = cached(url: url) { return hit }
         let key = url.path
-        let box = await Task.detached(priority: .utility) {
-            let resolved = kind ?? MediaProbe.kind(of: url)
-            return ThumbnailBox(decoded: resolved == .video
-                                ? await Self.videoThumbnail(url: url, pixel: pixel)
-                                : Self.imageThumbnail(url: url, pixel: pixel))
-        }.value
+
+        // ⚠️ **在飞去重**。主 actor 只保证"检查缓存"与"写入缓存"之间原子；
+        // `await ...value` 挂起期间，另一路对同一个 key 的请求照样会 miss，
+        // 于是两次解码、两次 `store` —— `order` 里出现重复 key，
+        // 较早那份被 LRU 淘汰时会把仍在用的条目删掉。素材库网格和菜单栏面板
+        // 完全可能同时指向同一个文件，所以这不是理论问题。
+        let job: DecodeJob
+        if let existing = inFlight[key] {
+            job = existing
+        } else {
+            let id = UUID()
+            let task = Task.detached(priority: .utility) {
+                let resolved = kind ?? MediaProbe.kind(of: url)
+                return ThumbnailBox(decoded: resolved == .video
+                                    ? await Self.videoThumbnail(url: url, pixel: pixel)
+                                    : Self.imageThumbnail(url: url, pixel: pixel))
+            }
+            job = DecodeJob(id: id, task: task)
+            inFlight[key] = job
+        }
+
+        let box = await job.task.value
+        // 只清掉自己发起的那一份：晚到的请求可能已经换了新任务，别替它清。
+        if inFlight[key]?.id == job.id { inFlight[key] = nil }
         guard let image = box.decoded else { return nil }
+        // 另一路可能已经先写进去了，这里再查一次，避免重复记账。
+        if let hit = cached(url: url) { return hit }
         store(image, for: key)
         return image
+    }
+
+    /// 正在解码中的一个任务 + 它的身份。身份用来判断"要不要由我来清账"。
+    private struct DecodeJob {
+        let id: UUID
+        let task: Task<ThumbnailBox, Never>
     }
 
     /// 只是为了把 `NSImage` 送过后台 → 主线程的边界。

@@ -163,6 +163,14 @@ def wobble_penguin():
 
 # ---------------------------------------------------------------- 6. 视频示例 mp4
 def sample_mp4():
+    # ⚠️ 先查 ffmpeg 在不在。
+    #
+    # 以前没有这一步：裸调 `subprocess.run(["ffmpeg", …])` 在没装的机器上直接抛
+    # FileNotFoundError，48 帧 PNG 白白渲染完、脚本崩在这儿，
+    # 而末尾那句"⚠️ ffmpeg 生成视频失败，已跳过"**永远走不到**。
+    if shutil.which("ffmpeg") is None:
+        print(f"{'bounce.mp4':22s} ⚠️ 没有 ffmpeg，已跳过")
+        return
     frames_dir = os.path.join(OUT, "_frames_tmp")
     os.makedirs(frames_dir, exist_ok=True)
     n = 48

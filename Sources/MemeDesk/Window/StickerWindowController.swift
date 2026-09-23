@@ -367,7 +367,8 @@ final class StickerWindowController: NSWindowController {
     // ⚠️ 只有 2) 和 3) 在这里做。1) 那半（`stage.setMenuInteraction`）**必须由调用方无条件执行**，
     // 因为这个控制器可能在菜单动作里就被销毁了 —— 原因见 `init` 里的注释。
 
-    private func applyMenuPresentation(_ active: Bool) {
+    /// `internal` 而非 `private`：菜单栏面板那条路（`Stage.applyMenuPresentation`）也要用。
+    func applyMenuPresentation(_ active: Bool) {
         stickerWindow.setMenuPresentation(active)
         // 不要只指望 NSApplication.didResignActiveNotification：走完菜单之后，
         // 应用的激活状态往往根本没变过，那个通知不触发，蓝框就留在桌面上了。

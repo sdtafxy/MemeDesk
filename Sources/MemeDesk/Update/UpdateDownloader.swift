@@ -81,19 +81,23 @@ enum UpdateDownloader {
 
         let payload = try Data(contentsOf: zipURL)
 
-        // ① 哈希
-        if let checksumURL = release.checksumURL,
-           let text = try? await fetchText(checksumURL, session: session, userAgent: userAgent),
-           let expected = UpdateIntegrity.parseChecksum(text) {
-            let actual = UpdateIntegrity.sha256Hex(payload)
-            guard actual == expected else {
-                try? FileManager.default.removeItem(at: zipURL)
-                throw UpdateDownloadError.checksumMismatch(expected: expected, actual: actual)
-            }
-        } else if publicKeyBase64?.isEmpty == false {
-            // 要验签就得先确认包本身完整，否则等于放弃了哈希这道防线
+        // ① 哈希 —— **必查，不降级**。
+        //
+        // ⚠️ 以前这里是 `if let … = try? …` 的三条可选链，任何一条断掉（`.sha256` 资产缺失、
+        // 取文本失败、解析失败）就整段哈希校验跳过。`try?` 会把**一次瞬时网络错误**
+        // 变成"零完整性校验地装包"，而 README 写的是"SHA-256 一定查"。
+        // 现在一律硬失败：拿不到校验和就别装。
+        guard let checksumURL = release.checksumURL,
+              let text = try? await fetchText(checksumURL, session: session, userAgent: userAgent),
+              let expected = UpdateIntegrity.parseChecksum(text)
+        else {
             try? FileManager.default.removeItem(at: zipURL)
             throw UpdateDownloadError.checksumUnavailable
+        }
+        let actual = UpdateIntegrity.sha256Hex(payload)
+        guard actual == expected else {
+            try? FileManager.default.removeItem(at: zipURL)
+            throw UpdateDownloadError.checksumMismatch(expected: expected, actual: actual)
         }
 
         // ② 签名（配了公钥就必查）

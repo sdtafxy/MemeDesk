@@ -318,10 +318,18 @@ private struct StickerRow: View {
         }
     }
 
-    /// 弹出该素材自己的 NSMenu。弹菜单期间通知状态栏控制器别把手势当成“点外面”。
+    /// 弹出该素材自己的 NSMenu。弹菜单期间要做两件事，缺一样就出问题：
+    ///   · 通知状态栏控制器别把手势当成"点外面"（`beginMenuSuppression`）；
+    ///   · **冻结运动 + 把窗口压到菜单底下**（`applyMenuPresentation`）——
+    ///     菜单在 `popUpMenu(101)`，浮动层的贴纸在 `screenSaver(1000)`，
+    ///     不压层级的话贴纸会盖住它自己的菜单，不冻运动的话它会滑到菜单底下。
+    /// 桌面右键那条路（`StickerView.rightMouseDown`）一直都做了第二件事，这里以前漏了。
     @MainActor
     private func showStickerMenu() {
         guard let menu = stage.menu(for: summary.id) else { return }
+        // ⚠️ 两个 defer 都必须无条件执行：素材可能在菜单里被"从桌面移除"。
+        stage.applyMenuPresentation(summary.id, true)
+        defer { stage.applyMenuPresentation(summary.id, false) }
         StatusBarController.shared.beginMenuSuppression()
         defer { StatusBarController.shared.endMenuSuppression() }
         _ = menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)

@@ -29,8 +29,14 @@ if ! command -v swift >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "==> Building $APP_NAME (release)"
-swift build -c release --package-path "$ROOT"
+# ⚠️ **必须双架构（universal）**。
+#
+# 只出 arm64 的话，Intel Mac 装上会直接"此应用无法在此 Mac 上运行" ——
+# 而 README 只说"macOS 13 及以上"，Ventura 有大量 Intel 机器；
+# CI 又跑在 arm64 runner 上，**永远发现不了**这个问题。
+# 本项目零第三方依赖，双架构构建没有额外代价（只是产物大一倍）。
+echo "==> Building $APP_NAME (release, arm64 + x86_64)"
+swift build -c release --package-path "$ROOT" --arch arm64 --arch x86_64
 
 echo "==> Assembling $APP"
 rm -rf "$APP"
@@ -39,6 +45,15 @@ mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 cp "$BUILD_DIR/$APP_NAME" "$CONTENTS/MacOS/$APP_NAME"
 cp "$ROOT/Resources/Info.plist" "$CONTENTS/Info.plist"
 printf 'APPL????' > "$CONTENTS/PkgInfo"
+
+# 双架构是"能装"的前提，别让它悄悄退化成单架构（上面那行参数被人删掉就会）。
+archs="$(lipo -archs "$CONTENTS/MacOS/$APP_NAME" 2>/dev/null || true)"
+case "$archs" in
+  *arm64*x86_64*|*x86_64*arm64*) echo "    architectures: $archs" ;;
+  *) echo "error: $APP_NAME 不是 universal —— lipo 报告 '$archs'" >&2
+     echo "       Intel Mac 装不上。检查上面 swift build 的 --arch 参数。" >&2
+     exit 1 ;;
+esac
 
 if [ -f "$ROOT/Resources/AppIcon.icns" ]; then
   cp "$ROOT/Resources/AppIcon.icns" "$CONTENTS/Resources/AppIcon.icns"

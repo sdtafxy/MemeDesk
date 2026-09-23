@@ -102,6 +102,14 @@ def subject(path: Path, crop: float):
     mask[:, -b:] = False
 
     ys, xs = np.nonzero(mask)
+    # ⚠️ 一个主体像素都没有时，`np.nonzero` 给的是空数组，`.min()` 会抛一个
+    # 完全读不出缘由的 `ValueError: zero-size array to reduction operation minimum`。
+    # 触发条件是"四条边一个背景种子都播不到"（整幅图都被判成候选背景）——
+    # 真实的猫照片不会，但换素材时值得给人一句人话。
+    if ys.size == 0:
+        raise SystemExit(
+            f"error: 在 {path} 里找不到主体 —— 剥背景后整幅图都被判成了背景。\n"
+            "       换一张主体与背景反差更大的照片，或调 subject() 里候选背景的判据。")
     x0, x1, y0, y1 = int(xs.min()), int(xs.max()), int(ys.min()), int(ys.max())
     cut = int(y0 + (y1 - y0 + 1) * crop)
     return mask[:cut, x0:x1 + 1], lum[:cut, x0:x1 + 1]

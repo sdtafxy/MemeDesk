@@ -33,7 +33,12 @@ if [ ! -d "$APP" ]; then
   exit 1
 fi
 
-VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null || echo 0.0.0)"
+# ⚠️ 读不出就报错退出（理由见 make_dmg.sh 里同样的注释）。
+VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null || true)"
+if [ -z "$VERSION" ]; then
+  echo "error: 读不出 $APP/Contents/Info.plist 的 CFBundleShortVersionString" >&2
+  exit 1
+fi
 ZIP="$DIST/$APP_NAME-$VERSION.zip"
 
 rm -f "$ZIP" "$ZIP.sha256" "$ZIP.ed25519"
@@ -44,6 +49,13 @@ ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
 
 # 只写纯十六进制，不带文件名：更新器两种写法都能解析，纯哈希最不容易出错。
 shasum -a 256 "$ZIP" | awk '{print $1}' > "$ZIP.sha256"
+
+# ⚠️ 自校验：这个 .sha256 是 App 端**唯一**的完整性依据（公钥为空时不验签），
+# 写歪了没人会发现 —— 包括发布链路自己。重算一遍比一比。
+if [ "$(shasum -a 256 "$ZIP" | awk '{print $1}')" != "$(cat "$ZIP.sha256")" ]; then
+  echo "error: $ZIP.sha256 与 $ZIP 对不上" >&2
+  exit 1
+fi
 
 echo "==> Done: $ZIP ($(wc -c < "$ZIP" | tr -d ' ') bytes)"
 echo "    sha256: $(cat "$ZIP.sha256")"
@@ -56,6 +68,10 @@ if [ -n "${MEMEDESK_UPDATE_SIGNING_KEY:-}" ]; then
     exit 1
   fi
   "$PYTHON" "$ROOT/Scripts/sign_update.py" "$MEMEDESK_UPDATE_SIGNING_KEY" "$ZIP"
+  if [ ! -s "$ZIP.ed25519" ]; then
+    echo "error: 签名跑完了但 $ZIP.ed25519 不存在或是空的" >&2
+    exit 1
+  fi
   echo "    ed25519: $ZIP.ed25519"
 else
   echo "    (未签名：没有设置 MEMEDESK_UPDATE_SIGNING_KEY)"

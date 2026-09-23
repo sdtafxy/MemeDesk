@@ -28,6 +28,18 @@ jobs:
             echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
           fi
 
+      # ⚠️ 发版前**必须**确认 tag 与包内版本一致。
+      # 不一致的话：Release 叫 v0.1.7、里面的 App 却报 0.1.6，
+      # 而更新器 `release.version > current` 永远成立 → 每次启动都提示装同一个更新。
+      - name: Check version consistency (with tag)
+        run: ./Scripts/check_version.sh "${{ steps.version.outputs.tag }}"
+
+      # 公钥与私钥两头一致：只配一半，用户要么更不了、要么签了没人验。
+      - name: Check update-signing configuration
+        env:
+          MEMEDESK_UPDATE_SIGNING_KEY: ${{ secrets.MEMEDESK_UPDATE_SIGNING_KEY }}
+        run: ./Scripts/check_update_signing.sh
+
       - name: Build
         run: swift build -c release
 
@@ -52,15 +64,14 @@ jobs:
           fi
           ./Scripts/make_zip.sh
 
+      # ⚠️ 抽不到就**非零退出**，绝不能让一个空正文的 Release 发出去。
+      # 老写法是直接 `awk | sed > release_notes.md`：CHANGELOG 里没有 `## [` 标题、
+      # 或者整个文件缺失，都会**安静地写出 0 字节并返回 0**，于是发布一个空正文的 Release。
       - name: Collect release notes
-        run: |
-          # 只取 CHANGELOG 里最新的一段。标题里的 [x.y.z] 是 Keep-a-Changelog 的链接引用写法，
-          # 单看正文没有链接定义，所以要脱掉方括号 —— 但**版本号必须留下**：
-          # 老写法 `sed 1s/^## \[[^]]*\] - /## /` 会把 `## [0.1.5] - 2026-09-21` 变成
-          # `## 2026-09-21`，版本号直接没了（0.1.2~0.1.5 的 Release 正文都缺版本号）。
-          awk 'BEGIN{on=0} /^## \[/{if (on) exit; on=1} on{print}' CHANGELOG.md \
-            | sed -e '1s/^## \[\([^]]*\)\] - /## \1 — /' > release_notes.md
-          head -3 release_notes.md
+        run: ./Scripts/release_notes.sh "${{ steps.version.outputs.tag }}" release_notes.md
+
+      - name: Check artefacts
+        run: ./Scripts/check_artifacts.sh
 
       - name: Create release
         uses: softprops/action-gh-release@v2
