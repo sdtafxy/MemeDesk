@@ -4,6 +4,55 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2026-09-24
+
+A regression 0.1.7 introduced in the motion engine, and the packaging policy reversed.
+
+### Fixed
+
+- **Dragging a settled gravity sticker made it twitch, then slam into the floor.** 0.1.7 fixed
+  "a sticker that has come to rest cannot be woken by dragging" by clearing `sleeping` whenever
+  the position changed externally. But *waking* the engine while the mouse is still holding the
+  sticker is exactly the wrong half of the fix: the engine and the mouse then both write the
+  window position thirty times a second, so the sticker jitters under the cursor, and `vy` keeps
+  accumulating gravity for as long as the drag lasts, so letting go launches it downward.
+
+  Measured with a harness that drives the real `MotionEngine.swift` (stub `MotionMode`, script
+  compiled twice — once against the 0.1.7 logic, once against the fix):
+
+  | | 引擎在拖拽 30 帧里插手的次数 | 松手后头几帧的位移 |
+  |---|---|---|
+  | 0.1.7 | **30 / 30** | +11.8, +10.2, +8.6 … 每帧**向上**——它在被地板弹回来 |
+  | 0.1.8 | **0 / 30** | −1.6, −3.1, −4.7 … 从静止平滑加速下落 |
+
+  Dragging is now a first-class state rather than an inference from "the position moved":
+  `MotionEngine.hold(_:)` / `release(_:)` suspend the physics for that instance, and
+  `MotionEngine.update` returns `nil` — "do not touch it this frame" — so the caller skips
+  `applyMotion` as well. Releasing keeps the velocity at zero, so it starts falling from rest
+  instead of inheriting whatever the drag accumulated.
+
+### Changed
+
+- **Releases are arm64-only again.** 0.1.7 shipped a universal binary, which doubles the
+  download (zip 0.76 MB → 1.34 MB) in order to serve Intel Macs on the last macOS that supports
+  them. Not worth it. Intel users build from source, which is architecture-agnostic and which
+  the README now says. `Scripts/build.sh` carries an `EXPECTED_ARCH` constant and
+  `check_artifacts.sh` asserts the architecture is exactly that, so switching back is one line
+  plus one check.
+- **The shipped binary is stripped.** The symbol tables are a large fraction of a Swift binary —
+  `__LINKEDIT` was about 63% of each slice. `strip -x` takes a slice from 2.23 MB to **0.96 MB**
+  (−57%), and still −32% once inside the zip. It runs **before** `codesign`; modifying a binary
+  after signing invalidates the signature. Local symbols are not needed at runtime and debug
+  symbols live in the separately generated `.dSYM`, so crash symbolication is unaffected. The
+  artefact check now also flags a binary that looks unstripped, because "correct but twice the
+  size" is invisible on CI.
+
+### Notes
+
+- The motion harness lives in `/tmp/memedesk-fixes/motion-drag/` and compiles the real
+  `MotionEngine.swift`, so it keeps working as long as that file stays free of AppKit — which is
+  the same property that lets the menu bar icon file be dumped to PNG for visual checking.
+
 ## [0.1.7] - 2026-09-23
 
 A full self-audit turned up fourteen defects across the state machine, the updater and the
