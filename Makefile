@@ -12,7 +12,7 @@ endif
 .PHONY: build app dmg zip release open samples icon install clean
 
 build:
-	swift build -c release --arch arm64 --arch x86_64
+	swift build -c release --arch arm64
 
 app:
 	./Scripts/build.sh

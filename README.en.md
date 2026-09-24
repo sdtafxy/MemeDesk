@@ -165,8 +165,9 @@ are two groups:
 ## Requirements
 
 - macOS 13 Ventura or later
-- Releases are **universal binaries** (Apple silicon and Intel) from 0.1.7 onwards; earlier
-  versions were arm64-only and will not run on an Intel Mac
+- Releases are **arm64-only** (Apple silicon). 0.1.7 briefly shipped a universal binary, but
+  that doubles the download (zip 0.76 MB → 1.34 MB), so 0.1.8 goes back to arm64 only —
+  **Intel Mac users should build from source**, which is architecture-agnostic; see below
 - The full Xcode to build from source (the Command Line Tools alone lack the SwiftUI macro plugin)
 
 ## License

@@ -25,12 +25,21 @@ VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIS
 [ -n "$VERSION" ] || { echo "error: 读不出包内版本号" >&2; exit 1; }
 echo "MemeDesk $VERSION"
 
-# 1) 双架构 —— Intel Mac 能不能装，只看这一条。
+# 1) 架构 —— 0.1.8 起**只发 arm64**（既定策略，见 build.sh 里的说明）。
+#    这里断言"恰好等于"，这样万一有人不小心改回双架构也会被拦下。
+EXPECTED_ARCH="arm64"
 archs="$(lipo -archs "$APP/Contents/MacOS/MemeDesk" 2>/dev/null || true)"
-case "$archs" in
-  *arm64*x86_64*|*x86_64*arm64*) need 1 "universal（${archs}）" ;;
-  *) need 0 "universal —— lipo 报告 '$archs'，Intel Mac 装不上" ;;
-esac
+if [ "$archs" = "$EXPECTED_ARCH" ]; then
+  need 1 "架构 ${archs}（期望 ${EXPECTED_ARCH}）"
+else
+  need 0 "架构是 '$archs'，期望 '$EXPECTED_ARCH'"
+fi
+
+# 1b) 符号表应该已经被 strip 掉 —— 没 strip 的话产物会大一倍多，
+#     而"能装、能跑、只是胖"这种退化在 CI 上完全看不见。
+size="$(wc -c < "$APP/Contents/MacOS/MemeDesk" | tr -d ' ')"
+if [ "$size" -lt 1600000 ]; then ok "已 strip（二进制 ${size} bytes）"
+else bad "二进制 ${size} bytes —— 疑似没 strip（预期 ~0.96 MB）"; fi
 
 # 2) 二进制的最低系统版本要和 Info.plist 说的一致。
 minos="$(otool -l "$APP/Contents/MacOS/MemeDesk" 2>/dev/null \
@@ -70,6 +79,15 @@ if [ -n "$key" ]; then
   [ -s "$zip.ed25519" ] && ok "已配公钥且签了名" || bad "配了公钥但没出 .ed25519 —— App 会对每个更新硬失败"
 else
   [ -e "$zip.ed25519" ] && bad "没配公钥却出了 .ed25519（没人会验，属于装饰）" || ok "未配公钥、未签名（自洽）"
+fi
+
+# 8) 代码签名本身得有效。
+#    ⚠️ 这条专门盯 `strip` 的顺序：sign 之后再改二进制会让签名失效，
+#    而"签名坏了"在 CI 上只表现为首次启动被拦，构建日志里看不出来。
+if codesign --verify --deep --strict "$APP" >/dev/null 2>&1; then
+  ok "代码签名有效"
+else
+  bad "代码签名校验失败 —— 检查 build.sh 里的 strip 是不是排在了 codesign 之后"
 fi
 
 if [ "$fail" -ne 0 ]; then echo "产物自检失败。" >&2; exit 1; fi

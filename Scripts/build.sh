@@ -28,38 +28,44 @@ if ! command -v swift >/dev/null 2>&1; then
   exit 1
 fi
 
-# ⚠️ **必须双架构（universal）**。
+# ⚠️ **只发 arm64**（0.1.8 起的既定策略，用户决定）。
 #
-# 只出 arm64 的话，Intel Mac 装上会直接"此应用无法在此 Mac 上运行" ——
-# 而 README 只说"macOS 13 及以上"，Ventura 有大量 Intel 机器；
-# CI 又跑在 arm64 runner 上，**永远发现不了**这个问题。
-# 本项目零第三方依赖，双架构构建没有额外代价（只是产物大一倍）。
-echo "==> Building $APP_NAME (release, arm64 + x86_64)"
-swift build -c release --package-path "$ROOT" --arch arm64 --arch x86_64
+# 0.1.7 发过一次双架构，代价是下载体积 1.76×（zip 0.76MB → 1.34MB）——
+# 而 Intel 机器上 macOS 13 已经是最后一个受支持的版本，不值得为此让所有人多下一倍。
+# Intel 用户改为从源码构建（README 里写明了）。
+#
+# 要改回双架构：把下面这行换成 `--arch arm64 --arch x86_64`，
+# 并同步改 `Scripts/check_artifacts.sh` 里的期望架构。
+echo "==> Building $APP_NAME (release, arm64)"
+swift build -c release --package-path "$ROOT" --arch arm64
 
 # ⚠️ **不要相信 `.build/release` 这个软链**。
 #
-# 它指向的是"上一次构建"的产物目录。而本机/CI 上如果之前跑过一次**单架构**
-# `swift build`，那次用的是旧的原生构建系统，产物落在别处；随后 `--arch` 多架构
-# 构建走的是新版 `swiftbuild`，两处不是一个目录 —— 软链还指着旧的 arm64 那份。
-# 实测（CI run 35830983650）：日志里明明有 "Create universal binary MemeDesk"、
-# "Build succeeded"，`cp` 到的却是单架构文件，架构断言当场炸掉。
+# 它指向"上一次构建"的产物目录，而**构建系统会变**：CI runner 上朴素的
+# `swift build -c release` 走旧的原生系统、`--arch …` 走新版 swiftbuild，
+# 两处产物目录不同，软链还指着旧那份。0.1.7 第一次 CI 就是这么挂的：
+# 日志里明明有 "Create universal binary" + "Build succeeded"，
+# `cp` 到的却是单架构文件。
 #
-# 所以直接按**内容**找：`lipo` 同时报出 arm64 与 x86_64 的那个才是真产物。
-# ⚠️ 必须跳过 `.dSYM`：符号文件里那份 DWARF **也是**双架构 Mach-O，名字还一样，
-# 不管的话会把它当成可执行文件拷进 MacOS/（实测踩过一次）。
+# 所以：先问 SwiftPM 要路径，再按**内容**确认；两条都不可信就在 `.build` 里按内容找。
+# ⚠️ 两个必须跳过的：
+#   · `*.dSYM/*` —— 里面的 DWARF 也是 Mach-O、basename 一模一样；
+#   · `*Intermediate*` —— 中间产物同样是"架构正确"的，但它不是最终链接结果。
+EXPECTED_ARCH="arm64"
 BIN=""
-while IFS= read -r f; do
-  case "$f" in *.dSYM/*) continue ;; esac
-  archs="$(lipo -archs "$f" 2>/dev/null || true)"
-  case "$archs" in
-    *arm64*x86_64*|*x86_64*arm64*) BIN="$f"; break ;;
-  esac
-done < <(find "$ROOT/.build" -type f -name "$APP_NAME" 2>/dev/null)
+CANDIDATE="$(swift build -c release --package-path "$ROOT" --arch arm64 --show-bin-path 2>/dev/null | tail -1)/$APP_NAME"
+if [ -f "$CANDIDATE" ] && lipo -archs "$CANDIDATE" 2>/dev/null | grep -q "$EXPECTED_ARCH"; then
+  BIN="$CANDIDATE"
+else
+  while IFS= read -r f; do
+    case "$f" in *.dSYM/*|*Intermediate*) continue ;; esac
+    if lipo -archs "$f" 2>/dev/null | grep -q "$EXPECTED_ARCH"; then BIN="$f"; break; fi
+  done < <(find "$ROOT/.build" -type f -name "$APP_NAME" 2>/dev/null)
+fi
 
 if [ -z "$BIN" ]; then
-  echo "error: 在 $ROOT/.build 里找不到双架构的 $APP_NAME。" >&2
-  echo "       构建看似成功了，但产物不是 universal —— Intel Mac 装不上。" >&2
+  echo "error: 在 $ROOT/.build 里找不到 $EXPECTED_ARCH 的 $APP_NAME。" >&2
+  echo "       构建看似成功了，但没有可用的产物。" >&2
   exit 1
 fi
 echo "    binary: ${BIN#"$ROOT"/}"
@@ -72,14 +78,26 @@ cp "$BIN" "$CONTENTS/MacOS/$APP_NAME"
 cp "$ROOT/Resources/Info.plist" "$CONTENTS/Info.plist"
 printf 'APPL????' > "$CONTENTS/PkgInfo"
 
-# 双架构是"能装"的前提，别让它悄悄退化成单架构（上面那行参数被人删掉就会）。
+# ⚠️ `strip` 必须在 **codesign 之前** —— 签完名再改二进制会把签名弄坏。
+#
+# 去掉的是本地符号（Swift 泛型实例化堆出来的那一大堆名字），运行时不依赖它们；
+# 调试符号在单独生成的 `.dSYM` 里，崩溃符号化不受影响。
+# 实测：单 slice 2.23 MB → 0.96 MB（**−57%**），压缩进 zip 后仍有约 −32%。
+# 符号表原本占二进制的一大半（`__LINKEDIT` 约 63%），不 strip 等于白背着。
+before="$(wc -c < "$CONTENTS/MacOS/$APP_NAME" | tr -d ' ')"
+strip -x "$CONTENTS/MacOS/$APP_NAME"
+after="$(wc -c < "$CONTENTS/MacOS/$APP_NAME" | tr -d ' ')"
+echo "    strip: $before → $after bytes（−$(( (before - after) * 100 / before ))%）"
+
+# 架构是"能不能装"的前提，别让它悄悄变成别的（上面那行参数被人改掉就会）。
 archs="$(lipo -archs "$CONTENTS/MacOS/$APP_NAME" 2>/dev/null || true)"
-case "$archs" in
-  *arm64*x86_64*|*x86_64*arm64*) echo "    architectures: $archs" ;;
-  *) echo "error: $APP_NAME 不是 universal —— lipo 报告 '$archs'" >&2
-     echo "       Intel Mac 装不上。检查上面 swift build 的 --arch 参数。" >&2
-     exit 1 ;;
-esac
+if [ "$archs" = "$EXPECTED_ARCH" ]; then
+  echo "    architectures: $archs"
+else
+  echo "error: $APP_NAME 的架构是 '$archs'，期望 '$EXPECTED_ARCH'" >&2
+  echo "       要改发布架构，请同时改本脚本的 EXPECTED_ARCH 与 Scripts/check_artifacts.sh。" >&2
+  exit 1
+fi
 
 if [ -f "$ROOT/Resources/AppIcon.icns" ]; then
   cp "$ROOT/Resources/AppIcon.icns" "$CONTENTS/Resources/AppIcon.icns"

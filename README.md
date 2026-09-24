@@ -139,8 +139,9 @@ Finder、Dock 和欢迎页看到的永远是同一张脸。
 ## 环境要求
 
 - macOS 13 Ventura 及以上
-- 发布包是**通用二进制**（Apple 芯片与 Intel 都支持）—— 从 0.1.7 起；
-  更早的版本只含 arm64，Intel 机器装不上
+- 发布包**只含 arm64**（Apple 芯片）。0.1.7 短暂发过双架构，但下载体积要翻倍
+  （zip 0.76 MB → 1.34 MB），从 0.1.8 起改回只发 arm64 —— **Intel Mac 请从源码构建**，
+  构建步骤见下，源码是跨架构的
 - 源码构建需要完整 Xcode（仅 Command Line Tools 会因缺少 SwiftUI 宏插件而编译失败）
 
 ## 许可证
