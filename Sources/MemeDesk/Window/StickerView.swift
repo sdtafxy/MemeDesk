@@ -16,6 +16,8 @@ final class StickerView: NSView {
     var onResize: ((CGSize) -> Void)?
     var onSelect: (() -> Void)?
     var onTogglePlay: (() -> Void)?
+    /// 拖拽开始 / 结束。开始那一下必须让运动引擎停手，否则引擎会和鼠标抢窗口位置。
+    var onDragState: ((Bool) -> Void)?
 
     private let imageLayer = CALayer()
     private let playerLayer = AVPlayerLayer()
@@ -35,6 +37,8 @@ final class StickerView: NSView {
     private var dragStartMouse: NSPoint = .zero
     private var dragStartVisualFrame: CGRect = .zero
     private var isResizing = false
+    /// 这一轮按下真的进过拖拽（用来配对 `onDragState`，见 `endDragIfNeeded`）。
+    private var isDragging = false
     /// 双击已经处理过了 —— 这一轮不要再当成拖拽（见 `mouseDown`）。
     private var suppressDrag = false
 
@@ -267,6 +271,10 @@ final class StickerView: NSView {
         dragStartMouse = NSEvent.mouseLocation
         dragStartVisualFrame = contentFrameInScreen
         isResizing = event.modifierFlags.contains(.option)
+        // ⚠️ 手一按下去就得让运动引擎停手，见 `MotionEngine.hold(_:)`。
+        // 只在"这一下真的可能是拖拽"时通知（双击已经在上面 return 了）。
+        isDragging = true
+        onDragState?(true)
     }
 
     override func updateTrackingAreas() {
@@ -296,6 +304,16 @@ final class StickerView: NSView {
     override func mouseUp(with event: NSEvent) {
         isResizing = false
         suppressDrag = false
+        endDragIfNeeded()
+    }
+
+    /// 收尾拖拽。**只在真的开始过拖拽时**才回调 —— 双击那一路会 `suppressDrag`
+    /// 直接 return，从来没 signal 过 `true`；无脑配一个 `false` 会把
+    /// 弹跳贴纸的速度清零（双击是"暂停"，不该顺手改变它的运动状态）。
+    private func endDragIfNeeded() {
+        guard isDragging else { return }
+        isDragging = false
+        onDragState?(false)
     }
 
     override func scrollWheel(with event: NSEvent) {

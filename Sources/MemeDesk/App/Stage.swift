@@ -281,6 +281,20 @@ final class Stage: ObservableObject {
         ensureMotionLoop()
     }
 
+    /// 用户开始 / 结束拖拽某个素材。
+    ///
+    /// ⚠️ 拖拽期间运动引擎必须**完全不插手**，原因见 `MotionEngine.hold(_:)`：
+    /// 只管"唤醒"是不够的 —— 那会让引擎和鼠标同时改窗口位置（抽搐），
+    /// 并且在被拖着的过程中攒下 `vy`（松手瞬间砸下去）。
+    func setDragging(_ id: UUID, _ active: Bool) {
+        if active {
+            motionEngine.hold(id)
+        } else {
+            motionEngine.release(id)
+        }
+        ensureMotionLoop()
+    }
+
     /// 右键菜单打开期间冻结运动：菜单锚在屏幕上，窗口一动就会"追着人跑"。
     func setMenuInteraction(_ active: Bool) {
         menuInteractionCount = max(0, menuInteractionCount + (active ? 1 : -1))
@@ -418,13 +432,15 @@ final class Stage: ObservableObject {
         let speed = preferences.motionSpeed
         for config in configs where !config.isHidden && config.motion != .still {
             guard let screen = screen(containing: config) else { continue }
-            let center = motionEngine.update(id: config.id,
-                                             motion: config.motion,
-                                             frame: config.frame.cgRect,
-                                             dt: dt,
-                                             speed: speed,
-                                             screen: screen.frame,
-                                             mouse: mouse)
+            // `nil` = 这一帧别动它（拖拽中 / 已睡眠 / dt==0 / 屏幕尺寸拿不到）。
+            // 拖拽那条尤其重要：连 `applyMotion` 都不能调，否则就跟鼠标抢位置。
+            guard let center = motionEngine.update(id: config.id,
+                                                   motion: config.motion,
+                                                   frame: config.frame.cgRect,
+                                                   dt: dt,
+                                                   speed: speed,
+                                                   screen: screen.frame,
+                                                   mouse: mouse) else { continue }
             guard let i = index(of: config.id) else { continue }
             // 走轻量路径：只动窗口，不重设 alpha / 图层 / 菜单
             configs[i].frame = configs[i].frame.settingCenter(center)

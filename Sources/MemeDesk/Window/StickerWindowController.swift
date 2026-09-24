@@ -47,6 +47,14 @@ final class StickerWindowController: NSWindowController {
             self.stage.select(self.stickerID)
         }
         contentView.onTogglePlay = { [weak self] in self?.togglePlay() }
+        // 拖拽开始 / 结束 → 让运动引擎停手 / 恢复。
+        //
+        // 刻意只捕获 `id`（值）与永不析构的 `Stage.shared`，不用 `weak self`：
+        // 控制器可能在拖拽中途被「从桌面移除」销毁，弱引用会让配对的 `false` 丢掉。
+        // 这里丢掉也不会永久卡住（`Stage.remove` 会 `motionEngine.reset` 清掉那个 id 的状态），
+        // 但没必要为省一个捕获冒这个险 —— 与 `onMenuInteraction` 同一个考虑。
+        let dragID = stickerID
+        contentView.onDragState = { active in Stage.shared.setDragging(dragID, active) }
         // ⚠️ `stage` 是刻意用 weak 捕获**单例**、而不是捕获控制器的。
         //
         // 菜单里点「从桌面移除」时，`stage.remove(id)` 会把本控制器销毁（它是唯一强引用），
