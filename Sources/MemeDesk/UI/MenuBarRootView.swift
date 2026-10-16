@@ -60,6 +60,11 @@ struct MenuBarRootView: View {
         .frame(width: PanelMetrics.width,
                height: PanelMetrics.panelHeight(summaryCount: stage.summaries.count))
         .background(MD.canvas)
+        // 面板收起 → 复位"等二次确认"的临时状态。宿主控制器长期持有，`@State`
+        // 不会重建，不主动清就会跨次残留（见 `StatusBarController.panelDidClose`）。
+        .onReceive(NotificationCenter.default.publisher(for: StatusBarController.panelDidClose)) { _ in
+            clearArmed = false
+        }
     }
 
     private var divider: some View {

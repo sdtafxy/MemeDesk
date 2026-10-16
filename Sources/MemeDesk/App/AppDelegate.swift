@@ -31,18 +31,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// 打开 URL。两种来源：`memedesk://` 自定义协议，以及**往图标上丢文件**
+    /// （Finder 的"打开方式"、拖到 Dock 图标）。
+    ///
+    /// ⚠️ 只要实现了这个 `open urls:` 版本，AppKit 就**不再调用** `application(_:openFile:)`。
+    /// 以前这里把非 `memedesk://` 的 URL 直接交给 `handleCommand`，而后者开头就
+    /// `guard url.scheme == "memedesk"` 把文件 URL return 掉了 —— 结果是拖进来的文件
+    /// **既没加进桌面，也没有任何提示**。文件 URL 必须在这里自己分流。
     func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls {
+        let files = urls.filter(\.isFileURL)
+        if !files.isEmpty {
+            Task { @MainActor in await Stage.shared.add(urls: files) }
+        }
+        for url in urls where !url.isFileURL {
             Task { @MainActor in Self.handleCommand(url) }
         }
-    }
-
-    /// Finder / "打开方式" 直接丢文件过来。
-    func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        Task { @MainActor in
-            await Stage.shared.add(urls: [URL(fileURLWithPath: filename)])
-        }
-        return true
     }
 
     /// 先落盘再退出。

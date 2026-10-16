@@ -22,14 +22,16 @@ struct SemanticVersion: Equatable, Comparable, CustomStringConvertible, Sendable
         if s.hasPrefix("v") || s.hasPrefix("V") { s.removeFirst() }
         guard !s.isEmpty else { return nil }
 
+        // ⚠️ 顺序：**先切构建元数据（`+`），再切预发布（`-`）**。
+        // 反过来的话 `1.0.0+build-5` 会被当"预发布后缀是 5"，于是它比正式的 1.0.0 还低 ——
+        // 一次只动了 build 的发布会被判成"不是更新"，用户永远收不到。
+        if let plus = s.firstIndex(of: "+") {
+            s = String(s[..<plus])
+        }
         var pre: String?
         if let dash = s.firstIndex(of: "-") {
             pre = String(s[s.index(after: dash)...])
             s = String(s[..<dash])
-        }
-        // `1.0.0+build5` 里的构建元数据不参与比较，直接丢掉。
-        if let plus = s.firstIndex(of: "+") {
-            s = String(s[..<plus])
         }
 
         var numbers: [Int] = []
@@ -73,7 +75,26 @@ struct SemanticVersion: Equatable, Comparable, CustomStringConvertible, Sendable
         case (nil, nil): return false
         case (nil, .some): return false
         case (.some, nil): return true
-        case let (.some(l), .some(r)): return l < r
+        case let (.some(l), .some(r)): return Self.isPrerelease(l, olderThan: r)
         }
+    }
+
+    /// 预发布后缀的比较规则（语义化版本 §11）。
+    ///
+    /// ⚠️ **不能直接拿字符串比**：那样 `alpha.10 < alpha.2`，于是同一条预发布线上
+    /// 越晚的版本反而被当成越旧。规则是：点分标识符逐个比；纯数字按**数值**比；
+    /// 数字段低于非数字段；前缀全等时**多出来的那个更高**（`alpha < alpha.1`）。
+    private static func isPrerelease(_ lhs: String, olderThan rhs: String) -> Bool {
+        let l = lhs.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        let r = rhs.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        for i in 0..<min(l.count, r.count) where l[i] != r[i] {
+            switch (Int(l[i]), Int(r[i])) {
+            case let (.some(a), .some(b)): return a < b
+            case (.some, .none): return true        // 数字标识符 < 非数字标识符
+            case (.none, .some): return false
+            case (.none, .none): return l[i] < r[i]
+            }
+        }
+        return l.count < r.count
     }
 }

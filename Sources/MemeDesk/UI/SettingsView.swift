@@ -85,8 +85,11 @@ struct SettingsView: View {
                 Toggle(loc[.launchAtLogin], isOn: Binding(
                     get: { LoginItem.isEnabled },
                     set: { enabled in
-                        LoginItem.setEnabled(enabled)
-                        stage.preferences.launchAtLogin = enabled
+                        // 只有系统真的接受了才记进偏好 —— 注册可能因为需要用户批准而失败，
+                        // 无条件写入会让偏好与真实状态分家。
+                        if LoginItem.setEnabled(enabled) {
+                            stage.preferences.launchAtLogin = enabled
+                        }
                     }))
                 HStack {
                     Text(String(format: loc[.statusLabel], loginStatus))

@@ -146,40 +146,76 @@ enum UpdateInstaller {
 
     say "helper 启动 pid=$PID dest=$DEST src=$SRC"
 
+    # 中间目录。赋值放在 trap 之前，`set -u` 下才不会在 trap 里炸。
+    STAGE=""
+    cleanup() {
+      # 收到能捕获的信号（TERM/INT/HUP）时收拾中间态：
+      # 万一正好停在"旧版本已挪走、新版本还没就位"那一瞬间，先把备份还原回去。
+      if [ ! -e "$DEST" ] && [ -e "$BACKUP" ]; then
+        mv "$BACKUP" "$DEST" 2> /dev/null
+      fi
+      [ -n "$STAGE" ] && rm -rf "$STAGE"
+      exit 143
+    }
+    trap cleanup TERM INT HUP
+
     # ① 等旧进程真的退出（最多 30 秒）
+    #
+    # ⚠️ 判据要把**僵尸**一起认掉：`kill -0` 对僵尸进程照样返回 0，而僵尸已经不占用任何
+    # 文件了。`ps -o state=` 报 `Z` 就当它已经退出 —— 否则这里会白等 30 秒，
+    # 然后既不换版本也不重开，用户看到的是"App 关掉了，但什么都没发生"。
     i=0
     while [ "$i" -lt 150 ]; do
-      kill -0 "$PID" 2> /dev/null || break
+      if ! kill -0 "$PID" 2> /dev/null; then break; fi
+      case "$(ps -o state= -p "$PID" 2> /dev/null)" in Z*) break ;; esac
       sleep 0.2
       i=$((i + 1))
     done
     if kill -0 "$PID" 2> /dev/null; then
-      say "旧进程 30 秒内没退出，放弃"
+      case "$(ps -o state= -p "$PID" 2> /dev/null)" in
+        Z*) : ;;
+        *) say "旧进程 30 秒内没退出，放弃"
+           # 别就这么走掉 —— 把还在的旧版本重新拉起来，总好过"App 没了"
+           reopen
+           exit 1 ;;
+      esac
+    fi
+
+    # ② 先把新版本**完整拷到旁边**，再动旧版本。
+    #
+    # ⚠️ 顺序是重点。以前是"先把旧的 mv 走、再 ditto 拷新的"，于是在整个 ditto 期间
+    # `$DEST` 根本不存在 —— helper 在这段时间被杀、或者断电，用户就**连旧版本都没了**。
+    # 改成先拷到同级目录（同卷），之后只剩两次 rename，窗口从"数秒"缩到"微秒"。
+    STAGE="$DEST.staging.$$"
+    rm -rf "$STAGE"
+    if ! ditto "$SRC" "$STAGE"; then
+      rm -rf "$STAGE"
+      say "拷贝新版本失败（磁盘空间？）"
+      reopen
       exit 1
     fi
 
-    # ② 旧版本挪到备份位。这一步同时也验证了目录可写。
+    # ③ 两次 rename 完成换装，任一步失败都回滚。
     rm -rf "$BACKUP"
     if ! mv "$DEST" "$BACKUP"; then
+      rm -rf "$STAGE"
       say "无法移动旧版本（权限不足？）"
       reopen
       exit 1
     fi
-
-    # ③ 新版本就位
-    if ditto "$SRC" "$DEST"; then
-      xattr -dr com.apple.quarantine "$DEST" > /dev/null 2>&1
-      rm -rf "$BACKUP"
-      say "更新完成 → $DEST"
+    if ! mv "$STAGE" "$DEST"; then
+      say "新版本就位失败，回滚"
+      rm -rf "$STAGE"
+      mv "$BACKUP" "$DEST"
       reopen
-      exit 0
+      exit 1
     fi
 
-    say "复制失败，回滚"
-    rm -rf "$DEST"
-    mv "$BACKUP" "$DEST"
+    xattr -dr com.apple.quarantine "$DEST" > /dev/null 2>&1
+    rm -rf "$BACKUP"
+    say "更新完成 → $DEST"
     reopen
-    exit 1
+    exit 0
     """#
 
     // MARK: - 跑一个子进程

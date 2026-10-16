@@ -252,6 +252,12 @@ final class StickerWindowController: NSWindowController {
 
         let interactive = !config.clickThrough && !config.locked && config.layerMode.supportsInteraction && !config.isHidden
         window.ignoresMouseEvents = !interactive
+        // ⚠️ 一旦窗口不再接收鼠标事件，**正在进行的拖拽就不可能收到 `mouseUp` 了** ——
+        // 用户拖到一半按了「全部隐藏」、或把这个素材切成锁定/穿透，就是这个情形。
+        // 不在这里补一下收尾，`StickerView.isDragging` 会一直是 true，
+        // 转发到 `MotionEngine` 就是 `held` 永久为真：那张贴纸的运动到重启前都不再更新
+        // （和 0.1.3 那个"计数器永久多 1"是同一类，只是这次卡的是运动引擎）。
+        if !interactive { contentView.cancelDrag() }
 
         let radians = config.rotation * .pi / 180
         contentView.setContentSize(config.frame.cgRect.size, rotation: radians, mirrored: config.mirrored)

@@ -106,6 +106,11 @@ final class VideoSource {
         } catch {
             return asset
         }
+        // ⚠️ `insertTimeRange` 只搬样本，**不会**复制源轨的 `preferredTransform`：
+        // 新建的 composition track 默认是 identity。手机竖拍的视频全靠这个 transform
+        // 才能正确显示，丢了就侧躺 90°；而窗口尺寸是按旋转后的宽高算的，于是画面还被拉伸。
+        // 必须在这里补回来 —— 这是默认路径（`stripAudio: true`），带音轨的竖拍视频必中。
+        track.preferredTransform = (try? await videoTrack.load(.preferredTransform)) ?? .identity
         return composition
     }
 }

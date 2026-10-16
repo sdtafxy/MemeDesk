@@ -8,7 +8,10 @@ import SwiftUI
 @MainActor
 final class HostedWindowController<Content: View>: NSWindowController {
 
-    convenience init(title: String, size: NSSize, content: Content) {
+    /// - Parameter id: 窗口位置的记忆键，**必须与语言无关**（用固定的英文标识）。
+    ///   以前这里用的是窗口标题，而标题是本地化的 —— 一换语言，`setFrameAutosaveName`
+    ///   的键就变了，窗口位置被当成"第一次打开"而重新居中。
+    convenience init(id: String, title: String, size: NSSize, content: Content) {
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered,
@@ -17,7 +20,7 @@ final class HostedWindowController<Content: View>: NSWindowController {
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: content)
         window.center()
-        window.setFrameAutosaveName("MemeDesk.\(title)")
+        window.setFrameAutosaveName("MemeDesk.\(id)")
         self.init(window: window)
     }
 
@@ -30,7 +33,7 @@ final class HostedWindowController<Content: View>: NSWindowController {
 
 enum WelcomeWindow {
     @MainActor static func show() -> NSWindowController {
-        let controller = HostedWindowController(title: L(.welcomeTitle),
+        let controller = HostedWindowController(id: "welcome", title: L(.welcomeTitle),
                                                 size: NSSize(width: 460, height: 400),
                                                 content: WelcomeView())
         controller.show()
@@ -46,7 +49,7 @@ enum LibraryWindow {
             current.show()
             return
         }
-        let controller = HostedWindowController(title: L(.library),
+        let controller = HostedWindowController(id: "library", title: L(.library),
                                                 size: NSSize(width: 680, height: 520),
                                                 content: LibraryView())
         controller.window?.delegate = WindowLifecycle.shared
@@ -63,7 +66,7 @@ enum SettingsWindow {
             current.show()
             return
         }
-        let controller = HostedWindowController(title: L(.settingsTitle),
+        let controller = HostedWindowController(id: "settings", title: L(.settingsTitle),
                                                 size: NSSize(width: 520, height: 620),
                                                 content: SettingsView())
         controller.window?.delegate = WindowLifecycle.shared

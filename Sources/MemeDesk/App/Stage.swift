@@ -59,10 +59,21 @@ final class Stage: ObservableObject {
     private var archiveIsFrozen = false
 
     private init() {
-        // 设置面板改动 → 立刻重新裁决播放策略并落盘
+        // 设置面板改动 → 立刻重新裁决播放策略并落盘。
+        //
+        // ⚠️ `@Published` 是在 **willSet** 时发布的，所以在 sink 里同步读 `self.preferences`
+        // 拿到的是**旧值**（实测：闭包入参已经是新值，读属性还是旧的）。而
+        // `refreshRunningState()` 正是去读 `preferences` 的 —— 结果
+        // 「电池暂停 / 全屏时隐藏 / 被遮挡时暂停 / 运动速度归零」这几个开关在设置里拨了
+        // 不会立刻生效，要等下一次无关的刷新才补上。
+        // 放到下一个主 actor 任务里再读，拿到的才是刚写进去的那份。
+        //
+        // 弱引用在**外层**就解成强引用：`Task` 的闭包是并发执行的，在里面写
+        // `guard let self` 会被 CI 的编译器判为"在并发代码里引用被捕获的 var"。
         prefSink = $preferences.sink { [weak self] _ in
-            self?.scheduleSave()
-            self?.refreshRunningState()
+            guard let hub = self else { return }
+            hub.scheduleSave()
+            Task { @MainActor in hub.refreshRunningState() }
         }
     }
 

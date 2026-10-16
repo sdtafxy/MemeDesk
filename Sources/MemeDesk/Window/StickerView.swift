@@ -272,9 +272,14 @@ final class StickerView: NSView {
         dragStartVisualFrame = contentFrameInScreen
         isResizing = event.modifierFlags.contains(.option)
         // ⚠️ 手一按下去就得让运动引擎停手，见 `MotionEngine.hold(_:)`。
-        // 只在"这一下真的可能是拖拽"时通知（双击已经在上面 return 了）。
-        isDragging = true
-        onDragState?(true)
+        // 只在"真的会移动位置"时通知 ——
+        //   · 双击那一路已经在上面 return 了；
+        //   · 按住 Option 是**缩放**，中心点不变，没必要打断运动（否则一张落定的
+        //     重力贴纸仅仅被改了个大小就会重新掉一次）。
+        if !isResizing {
+            isDragging = true
+            onDragState?(true)
+        }
     }
 
     override func updateTrackingAreas() {
@@ -315,6 +320,13 @@ final class StickerView: NSView {
         isDragging = false
         onDragState?(false)
     }
+
+    /// 外部强制结束拖拽。
+    ///
+    /// ⚠️ 必须留着这个入口：窗口一旦 `ignoresMouseEvents = true`（被隐藏 / 锁定 /
+    /// 切成穿透），`mouseUp` 就永远不会到达，`isDragging` 会一直挂着 ——
+    /// 配对的 `false` 也就发不出去，那张贴纸的运动会被永久冻结。
+    func cancelDrag() { endDragIfNeeded() }
 
     override func scrollWheel(with event: NSEvent) {
         guard abs(event.scrollingDeltaY) > 0 else { return }

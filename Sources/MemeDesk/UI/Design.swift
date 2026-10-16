@@ -57,15 +57,22 @@ enum MD {
 // MARK: - 按钮
 
 /// 灰色块按钮：应用的默认按钮，次要操作全部用它。
+///
+/// ⚠️ `ButtonStyle` 拿不到 `isEnabled`，只能从环境里读；`Button(role:)` 传递的 role
+/// 也只能从 `configuration` 里取。少了这两样，`.disabled()` 的按钮看起来仍然可以点，
+/// 破坏性操作的红色也出不来。
 struct MDButtonStyle: ButtonStyle {
     var compact = false
     var fullWidth = false
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        let ink = configuration.role == .destructive ? Color(nsColor: .systemRed) : MD.ink
+        return configuration.label
             .font(MD.fontButton)
-            .foregroundStyle(configuration.isPressed ? MD.inkSub : MD.ink)
+            .foregroundStyle(configuration.isPressed ? MD.inkSub : ink)
             .lineLimit(1)
+            .opacity(isEnabled ? 1 : 0.38)
             .padding(.horizontal, compact ? 9 : 13)
             .frame(height: compact ? 24 : 28)
             .frame(maxWidth: fullWidth ? .infinity : nil)
@@ -80,6 +87,7 @@ struct MDButtonStyle: ButtonStyle {
 /// 品牌橙按钮：每个界面最多一个，留给最重要的操作。
 struct MDPrimaryButtonStyle: ButtonStyle {
     var fullWidth = false
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -91,7 +99,8 @@ struct MDPrimaryButtonStyle: ButtonStyle {
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .background(
                 RoundedRectangle(cornerRadius: MD.cornerS, style: .continuous)
-                    .fill(configuration.isPressed ? MD.accentActive : MD.accent)
+                    // 禁用时压暗底色，而不是只降低不透明度 —— 否则白色文字会糊在浅橙上。
+                    .fill(configuration.isPressed ? MD.accentActive : (isEnabled ? MD.accent : MD.accent.opacity(0.4)))
             )
             .contentShape(RoundedRectangle(cornerRadius: MD.cornerS, style: .continuous))
     }

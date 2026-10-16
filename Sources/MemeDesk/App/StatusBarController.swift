@@ -99,8 +99,17 @@ final class StatusBarController: NSObject {
         popover.contentViewController?.view.window?.makeKey()
     }
 
+    /// 面板收起时广播。
+    ///
+    /// ⚠️ 宿主控制器是长期持有的（`NSHostingController` 只在 `install()` 里建一次），
+    /// 所以内容视图里的 `@State` **不会**随面板收起而重建。不广播这一下，
+    /// 任何"等用户二次确认"的临时状态都会跨次残留 —— 比如「清空桌面」的确认态，
+    /// 关掉面板再打开还在，用户一次点击就会真的清空。
+    static let panelDidClose = Notification.Name("com.memedesk.panelDidClose")
+
     func close() {
         popover?.performClose(nil)
+        NotificationCenter.default.post(name: Self.panelDidClose, object: nil)
     }
 
     // MARK: 点击外部收起 / Esc 收起
