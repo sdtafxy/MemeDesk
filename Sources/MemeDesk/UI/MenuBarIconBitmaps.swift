@@ -9,29 +9,29 @@ enum MenuBarIconBitmaps {
 
     /// jimiSmile：54×54，4 级 alpha 打包成 2bit/像素
     static let jimiSmile = """
-        AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGqpAAAAAAAAAAAAAAK/m/5AAAAAAAAAAAAG/+V
-        vv1AAAAAAAAAAC//+Wv//gAAAAAAAAAb//+qr//+AAAAAAAAC///+qv///5AAAAAABb///+v/////kAAAAAf///////////9AAAA
-        B////////////3AAAAL/////////////gAAAv/////////////4AAH//////////////+QAf///////////////wA//////7///+
-        /////0H//////7/+++v////gCv/////3/+/9v///+AAfv////7///5v////QAL///0/////r+Af//gAL//9AA///+rwABf/0Af//
-        9AAP//+vAAAL/8Av/79AAD//58AAC6/8A///8AAD//+8AAD9a8A////IBT//+0AAf/FoA////rr////gBb//CYA//////+//6R//
-        /+RUA/7////+v/5C//v1hkB/v/v///v/5C//qWgUA///2///v/5C//gG0AAv////////9C+rka0AAv////////9D9H5W5AAf///f
-        ////9D//4C5IAP/r////+bQD///r6sAf//////ABAD///+VoAf//////wAAH//+4F0Af//////9AAP///4B0AP//////+QAb///+
-        WwAL//l///4AAGqv7r/gAf/+Wr/+UAAG/q+pvQAv///9VBAAAAABqa+AA////+gAApUAABmn8AC/////4AAAAAAVkq0AC/////+A
-        AAAABpZvQAH//////wAAAAGpauAAL///7//5GpVRqqr4AAf///6///////qqv4AA////+b/p///+mq9YAA/////QVUL//pWqQNAA
-        /////0AABpVVVUAWAA/////9AAAAAAAAATQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGqpQAAAAAAAAAAAAAG/l
+        v5QAAAAAAAAAAAG//lvv5AAAAAAAAAAAvv/mr//kAAAAAAAAAH///qr//+AAAAAAAAAv///r////5AAAAAABr////v/////0AAAA
+        AH///////////sAAAAAv///////////+AAAAC/////////////QAAAb/////////////4AAB///////////////AAD/////////+
+        /////QAf/////+/+++v///+AAe/////9///9v///8AAB7////+///5////9AAA///4G////r8Af//AAAv//QAP//+rgAAv/QAC//
+        /gAD//+uAAAf/wAD///gAA//98AAD6/wAD///gAA//+8AAP8WwAD///2Q3///kAC/9FgAD///u/////hH//9FQAH/////+v/9R//
+        vlGQAH+/7/////5C//vWRQAH//+///v/5C//QaQAAD////////+C+/QbgAAC////////+D8H1bkAAB//+7////9D/v0H0QAB/+//
+        7/+bgD//+r5wAC//////wBAD///5WgAC//////wAAH//+gHQAB//////+QAP///0HQAA///////kAL///+bQAB//pf//4AAGr/7q
+        +AAC//66//kAABqWqq9AAD////UAAAQAACab4AAH////5AAVUAAGirgAAL/////QAAAAAVV/AAAf/////0AAAACpatAAAv/////9
+        AVQAaqq0AAB///+v/////qqqvwAAD////q/6v//+qq5wAAD////0WVH//pWqQoAAD////9AAAaVVVUAcAAD/////QAAAAAAAANAA
+        AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
         """
 
     /// jimiFacepalm：54×54，4 级 alpha 打包成 2bit/像素
     static let jimiFacepalm = """
-        AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/+RAAAAAAAAAAAAAB////kAAAAAAAAAAABv/////gAAAAAAAAAAb///
-        ///4AAAAAAAAAB////////QAAAAAAAAH////7///wAAAAAAAa////+////4AAAAAAC//////////+AAAAAAJv//////////gAAAA
-        Aq/////W/////0AAAAB7////9P/////9AAAACv////8v/////+AAAALuv///8/////7/QAAAeqb///5/+//v7/gAAAqpf///36f/
-        ///50AAAfgf///iAD///+AoAAAKA///+AAA//+8ANAAAJu///9GAAP/+0AdAAAf////4fAAP//0AtAAAv////g9QAL//wA9AAAv/
-        ///g9gAb//gH9AAA/////AuaWl/+m/tAAB////+Aqv/lv/m/tAAC////9AWv/1b/m+dAAL////4AFqv5W/2/tAAv////4BQWr5Vu
-        q+tAC/////wAapaq5rl+dAL/////gAAW6/5RQ/8Af////6QAavg/wAAv8Av////1AAb/6/4AA/9A/////pAAFv//+QC/+A/////o
-        AAAf///kGv/Av////kAAAL///kVq/Qv/6v/gAAAC/qpAGm/g/qqqugAAAAKqkAAW/w/qqqpQAAAAAAAAAW/0rqqqlAAEAAAAAABW
-        v8eqqqpAAVQAAAVlVWv8KqqqpQAVVAFqqpRVr8DqqqqkBaVVAZVQBWr8CqqqlQBqla4AAAFa/8AqqqlABmpqvqqqpr/8AOqqVABm
-        pf///////4AHapQABaub///////oACmpQEBavm//////uoAAZpQUAav+//////6kAAGaqkAa////////qoAABm+kAav////////8
-        AAAa6UBav////////8AAAO6UFav////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFv+VAAAAAAAAAAAAABv///kAAAAAAAAAAAAf//
+        ///gAAAAAAAAAAH//////4AAAAAAAAAAf///////QAAAAAAAAG///+7///wAAAAAAAL/////////4AAAAAAA7/////////+AAAAA
+        ACb////6/////QAAAAAK/////X/////0AAAAAO////+P/////4AAAAAu7///8f/////9AAAAC6m///9/////v/AAAADqW///9+v/
+        ///7QAAAC5D///1gC///8BgAAAA0L///gAAv/+wA0AAAA3v///BQAP/7wA4AAAC////9PgAP//wB4AAAD////4NgAL//QD4AAAH/
+        ///0fUAa//RfoAAAH////warrl//n+0AAAL////QKv/1v/n50AAAv////AGr/5X/n90AAB////+ABWr5R/m+0AAH////9AZZaqlv
+        n50AAv////4ABVuv6mi/0AA/////kAFX0/wAA/0AC////9QAb/5vwAB/0AD////+QAGv//9AD/4AD////6AAAL///gGv9AC////6
+        AAAL///kWr9AC++r/5AAAB/upAWX+AD+qqqoAAAAKqkABX/AD+qqqkAAAAAAAAAb/gCuqqqQAFAAAAAAFavwB6qqqUAVUAFVqpVa
+        /wAqqqqVAVVQBqqkBWrwAOqqqlAalWkEAAFavwAKqqpQAapa+QABVr/wACqqpQAZqb///+qv/wAAmqlAAaqb//////+gAAdqkAAW
+        vm/////++gAAHaUFAWr+//////qQAAA2lpAGv///////qgAAAdr5AWv////////wAAAHvpAWr////////wAAAB6lBWr////////w
+        AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
         """
 }

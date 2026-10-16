@@ -68,7 +68,9 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
     ///
     /// 「基米」那两个是**从照片色调映射出来的**（照片里亮的实心、暗的透明，4 级 alpha），
     /// 其余走矢量。两者都是模板图，颜色交给系统。
-    func image(pointSize: CGFloat = 18) -> NSImage {
+    /// - Parameter pointSize: 画布边长。菜单栏那条路传 `canvasSize`；
+    ///   设置页的预览走自己的尺寸，与菜单栏无关。
+    func image(pointSize: CGFloat = MenuBarIcon.canvasSize) -> NSImage {
         if let bitmap = Self.decodedBitmap(self) {
             bitmap.size = NSSize(width: pointSize, height: pointSize)
             return bitmap
@@ -133,20 +135,33 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
 
     // MARK: - 绘制
     //
-    // 全部图形都画在 24×24 的逻辑网格里，最后统一按 pointSize 缩放。
+    // 全部图形都画在 24×24 的**设计空间**里，由 `draw` 统一缩放并居中。
 
-    /// 24 格绘图网格。**改这个值 = 整体等比放大/缩小图案**（`draw` 里按 `size / grid` 缩放），
-    /// 所以五官与圆盘的比例不会走样。
-    ///
-    /// ⚠️ 它同时决定"图案占画布多少"：圆盘直径 `2 × faceRadius = 20.6` 格，
-    /// 所以占比 = `20.6 / grid`。**`Scripts/make_menubar_icons.py` 里的 `FILL`
-    /// 必须与它保持一致**，否则矢量脸和照片脸在设置页同一排里会一大一小。
-    ///
-    /// 0.2.0 起用 21（占比 98%），此前是 24（占比 86%）。再小会被裁：
-    /// 圆盘外沿在 `12 ± 10.3`，需要 `grid ≥ 20.6`。
-    private static let grid: CGFloat = 21
+    /// 设计空间边长。图案坐标全部按 24 格写，**它不再代表画布比例** ——
+    /// 比例由 `fill` 单独控制（见下）。改这个值等于给所有坐标换单位，没有意义。
+    private static let grid: CGFloat = 24
 
-    /// 圆形脸：圆心、半径。
+    /// 图案占画布的比例。**这是"图标多大"唯一的旋钮。**
+    ///
+    /// `draw` 会把图案的**外接圆**（圆心 `faceCenter`、半径 `faceRadius`）按这个比例
+    /// 居中铺进画布，所以：
+    ///   · 图案永远居中 —— 不会像 0.2.0 那样右侧/底部被裁；
+    ///   · `fill < 1.0` 是留给四周的**余量**。菜单栏里图标贴着栏顶栏底会显得发胀，
+    ///     0.92 大约留出 1pt。
+    ///
+    /// ⚠️ **`Scripts/make_menubar_icons.py` 里的 `FILL` 必须是同一个数**，
+    /// 否则矢量脸与照片脸在设置页同一排里会一大一小。
+    private static let fill: CGFloat = 0.92
+
+    /// 画布边长 = 菜单栏可用高度。
+    ///
+    /// **不要写死 18。** 菜单栏图标按**原始尺寸**绘制、不缩放，超出状态项按钮的部分
+    /// 直接被裁掉（实测：按钮 22pt、给 24pt 的图，宽度会被切成 22）。而按钮正好是
+    /// `NSStatusBar.system.thickness` 见方 —— 所以画布取它就是"能用的最大值"，
+    /// 而且换一台菜单栏更高的机器（24pt）会自动跟着变大。
+    static var canvasSize: CGFloat { NSStatusBar.system.thickness }
+
+    /// 圆形脸：圆心、半径。圆心也用来把图案对到画布正中。
     private static let faceCenter: CGFloat = 12
     private static let faceRadius: CGFloat = 10.3
     /// 五官线宽（弧线类：嘴、眼、眉毛）。
@@ -157,8 +172,18 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
     private static let dotEyeRadius: CGFloat = 1.75
 
     private static func draw(_ icon: MenuBarIcon, in size: CGFloat) {
+        // 把设计空间里的**图案外接圆**居中铺进画布：
+        //   ① 平移到圆心、② 按 fill 缩放、③ 把圆心挪回画布正中。
+        //
+        // ⚠️ 以前是 `scale(by: size / grid)`，也就是"直接把设计空间的 [0,grid] 铺满画布"。
+        // 那只在设计网格**恰好等于**画布比例时才居中 —— 一旦图省事把 grid 调小去放大图案，
+        // 圆心就不再是画布中心，图案会从右侧和底部溢出去被裁掉。
+        // 现在缩放比例只作用于图案本身、且由 `fill` 明确控制，居中与大小是两件独立的事。
+        let span = 2 * faceRadius
         let transform = NSAffineTransform()
-        transform.scale(by: size / grid)
+        transform.translateX(by: size / 2, yBy: size / 2)
+        transform.scale(by: size * fill / span)
+        transform.translateX(by: -faceCenter, yBy: -faceCenter)
         transform.concat()
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
 

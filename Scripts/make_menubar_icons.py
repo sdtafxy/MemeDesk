@@ -35,14 +35,14 @@ LEVELS = 4
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "Sources" / "MemeDesk" / "UI" / "MenuBarIconBitmaps.swift"
 
-# 主体最长的那个方向占画布的比例。
+# 图案占画布的比例。
 #
-# ⚠️ **必须与 `Sources/MemeDesk/UI/MenuBarIcon.swift` 里的 `grid` 保持一致**：
-# 矢量脸的圆盘直径是 20.6 格，占比 = 20.6 / grid。
+# ⚠️ **必须与 `Sources/MemeDesk/UI/MenuBarIcon.swift` 里的 `fill` 取同一个数** ——
+# 矢量脸画的就是那个外接圆，`fill` 正是圆占画布的比例。
 # 不一致的话，矢量脸和照片脸在设置页的同一排里会明显一大一小。
-#   0.2.0 起：grid 21 → FILL 0.98（占比 98%）
-#   0.1.4~0.1.8：grid 24 → FILL 0.86（占比 86%）
-FILL = 0.98
+#   0.2.1 起：0.92（四周留约 1pt 余量，不贴着菜单栏上下沿）
+#   0.1.4~0.1.8：0.86；0.2.0：0.98（偏满，且当时图案没有居中）
+FILL = 0.92
 
 # 色阶（压在"按主体 6%/94% 分位归一化"之后的一道上限/下限裁剪）。
 #   t 是归一化亮度：0 = 照片里最暗，1 = 最亮。

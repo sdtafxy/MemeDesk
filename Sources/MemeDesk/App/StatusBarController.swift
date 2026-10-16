@@ -26,9 +26,11 @@ final class StatusBarController: NSObject {
     ///
     /// 刻意**不用** `AppIcon` —— 那是个橙色的圆角方块，塞进菜单栏既比系统图标"重"，
     /// 又比它们小一圈。这里用的是矢量绘制的模板图，由系统按菜单栏明暗自动上色。
-    /// 尺寸取 18pt（内容直径约 16pt），与 SF Symbols 在菜单栏里的视觉大小对齐。
+    ///
+    /// 尺寸取 **`MenuBarIcon.canvasSize`（= 菜单栏高度）**：图标按原始尺寸绘制、不缩放，
+    /// 超出按钮会被裁，所以这就是能用的最大值。
     private static func menuBarImage(for icon: MenuBarIcon) -> NSImage {
-        icon.image(pointSize: 18)
+        icon.image(pointSize: MenuBarIcon.canvasSize)
     }
 
     // MARK: 安装

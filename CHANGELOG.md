@@ -8,8 +8,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- **Menu bar icons are larger.** The artwork now fills 98% of the 18 pt canvas instead of 86%,
-  and the eight vector faces and two photo faces are scaled to match.
+- **Menu bar icons are larger.** The canvas is the menu bar's own height now, instead of a fixed
+  18 pt, and the glyph fills 92% of it, centred. On a 22 pt menu bar that is roughly 20 pt of
+  glyph instead of 15 pt, with the same proportion of air around it.
 
 ### Fixed
 
