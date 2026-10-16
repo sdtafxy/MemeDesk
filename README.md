@@ -6,9 +6,20 @@
 
 **让表情包住进你的 macOS 桌面，24 小时循环播放。**
 
-[![CI](https://github.com/sdtafxy/MemeDesk/actions/workflows/ci.yml/badge.svg)](https://github.com/sdtafxy/MemeDesk/actions/workflows/ci.yml)
+<!-- 平台与技术栈 -->
+![macOS 13+](https://img.shields.io/badge/macOS-13%2B-000000?style=for-the-badge&logo=apple&logoColor=white)
+[![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-arm64-000000?style=for-the-badge&logo=apple&logoColor=white)](#环境要求)
+![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138?style=for-the-badge&logo=swift&logoColor=white)
+![Zero dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=for-the-badge)
 
-[English](README.en.md)
+<!-- 发布与状态 -->
+[![Latest release](https://img.shields.io/github/v/release/sdtafxy/MemeDesk?style=for-the-badge&label=release&color=FF7A2E&sort=semver)](https://github.com/sdtafxy/MemeDesk/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/sdtafxy/MemeDesk/total?style=for-the-badge&label=downloads&color=FF7A2E)](https://github.com/sdtafxy/MemeDesk/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/sdtafxy/MemeDesk/ci.yml?style=for-the-badge&label=CI)](https://github.com/sdtafxy/MemeDesk/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/sdtafxy/MemeDesk?style=for-the-badge&color=FF7A2E)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/sdtafxy/MemeDesk?style=for-the-badge&color=FF7A2E&label=stars)](https://github.com/sdtafxy/MemeDesk/stargazers)
+
+**[English](README.en.md)** · [更新日志](CHANGELOG.md)
 
 
 GIF / APNG / 静态图 / MP4 / MOV · 多开 · 不占 Dock · 中英双语

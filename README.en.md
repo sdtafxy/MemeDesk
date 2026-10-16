@@ -6,7 +6,20 @@
 
 **Keep your favourite memes looping on the macOS desktop, day and night.**
 
-[中文文档](README.md)
+<!-- Platform and stack -->
+![macOS 13+](https://img.shields.io/badge/macOS-13%2B-000000?style=for-the-badge&logo=apple&logoColor=white)
+[![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-arm64-000000?style=for-the-badge&logo=apple&logoColor=white)](#requirements)
+![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138?style=for-the-badge&logo=swift&logoColor=white)
+![Zero dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=for-the-badge)
+
+<!-- Release and status -->
+[![Latest release](https://img.shields.io/github/v/release/sdtafxy/MemeDesk?style=for-the-badge&label=release&color=FF7A2E&sort=semver)](https://github.com/sdtafxy/MemeDesk/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/sdtafxy/MemeDesk/total?style=for-the-badge&label=downloads&color=FF7A2E)](https://github.com/sdtafxy/MemeDesk/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/sdtafxy/MemeDesk/ci.yml?style=for-the-badge&label=CI)](https://github.com/sdtafxy/MemeDesk/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/sdtafxy/MemeDesk?style=for-the-badge&color=FF7A2E)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/sdtafxy/MemeDesk?style=for-the-badge&color=FF7A2E&label=stars)](https://github.com/sdtafxy/MemeDesk/stargazers)
+
+**[简体中文](README.md)** · [Changelog](CHANGELOG.md)
 
 
 GIF / APNG / still images / MP4 / MOV · any number at once · no Dock icon · bilingual
