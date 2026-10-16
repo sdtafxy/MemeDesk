@@ -6,13 +6,11 @@
 
 **Keep your favourite memes looping on the macOS desktop, day and night.**
 
-<!-- Platform and stack -->
+<!-- Badges: one row of platform and stack, one row of release and status. Keep them in ONE paragraph -- a blank line between the rows splits it in two and the paragraph margins make the gap look too wide. The trailing <br> is what breaks the line. -->
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-000000?style=for-the-badge&logo=apple&logoColor=white)
 [![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-arm64-000000?style=for-the-badge&logo=apple&logoColor=white)](#requirements)
 ![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138?style=for-the-badge&logo=swift&logoColor=white)
-![Zero dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=for-the-badge)
-
-<!-- Release and status -->
+![Zero dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=for-the-badge)<br>
 [![Latest release](https://img.shields.io/github/v/release/sdtafxy/MemeDesk?style=for-the-badge&label=release&color=FF7A2E&sort=semver)](https://github.com/sdtafxy/MemeDesk/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/sdtafxy/MemeDesk/total?style=for-the-badge&label=downloads&color=FF7A2E)](https://github.com/sdtafxy/MemeDesk/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/sdtafxy/MemeDesk/ci.yml?style=for-the-badge&label=CI)](https://github.com/sdtafxy/MemeDesk/actions/workflows/ci.yml)

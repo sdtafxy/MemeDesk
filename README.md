@@ -6,13 +6,11 @@
 
 **让表情包住进你的 macOS 桌面，24 小时循环播放。**
 
-<!-- 平台与技术栈 -->
+<!-- 徽章：一行平台与技术栈，一行发布与状态。两行之间不要留空行 —— 那会被拆成两个段落、行距明显偏大；用行尾的 <br> 换行，两行才同属一个段落。 -->
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-000000?style=for-the-badge&logo=apple&logoColor=white)
 [![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-arm64-000000?style=for-the-badge&logo=apple&logoColor=white)](#环境要求)
 ![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138?style=for-the-badge&logo=swift&logoColor=white)
-![Zero dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=for-the-badge)
-
-<!-- 发布与状态 -->
+![Zero dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=for-the-badge)<br>
 [![Latest release](https://img.shields.io/github/v/release/sdtafxy/MemeDesk?style=for-the-badge&label=release&color=FF7A2E&sort=semver)](https://github.com/sdtafxy/MemeDesk/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/sdtafxy/MemeDesk/total?style=for-the-badge&label=downloads&color=FF7A2E)](https://github.com/sdtafxy/MemeDesk/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/sdtafxy/MemeDesk/ci.yml?style=for-the-badge&label=CI)](https://github.com/sdtafxy/MemeDesk/actions/workflows/ci.yml)
