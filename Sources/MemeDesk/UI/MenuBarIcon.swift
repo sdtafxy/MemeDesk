@@ -135,7 +135,16 @@ enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
     //
     // 全部图形都画在 24×24 的逻辑网格里，最后统一按 pointSize 缩放。
 
-    private static let grid: CGFloat = 24
+    /// 24 格绘图网格。**改这个值 = 整体等比放大/缩小图案**（`draw` 里按 `size / grid` 缩放），
+    /// 所以五官与圆盘的比例不会走样。
+    ///
+    /// ⚠️ 它同时决定"图案占画布多少"：圆盘直径 `2 × faceRadius = 20.6` 格，
+    /// 所以占比 = `20.6 / grid`。**`Scripts/make_menubar_icons.py` 里的 `FILL`
+    /// 必须与它保持一致**，否则矢量脸和照片脸在设置页同一排里会一大一小。
+    ///
+    /// 0.2.0 起用 21（占比 98%），此前是 24（占比 86%）。再小会被裁：
+    /// 圆盘外沿在 `12 ± 10.3`，需要 `grid ≥ 20.6`。
+    private static let grid: CGFloat = 21
 
     /// 圆形脸：圆心、半径。
     private static let faceCenter: CGFloat = 12
