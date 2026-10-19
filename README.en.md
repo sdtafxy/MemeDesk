@@ -4,7 +4,7 @@
 
 # MemeDesk
 
-**Keep your favourite memes looping on the macOS desktop, day and night.**
+**A layer of memes that sits on your desktop and keeps looping.**
 
 <!-- Badges: one row of platform and stack, one row of release and status. Keep them in ONE paragraph -- a blank line between the rows splits it in two and the paragraph margins make the gap look too wide. The trailing <br> is what breaks the line. -->
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-000000?style=for-the-badge&logo=apple&logoColor=white)
@@ -19,167 +19,143 @@
 
 **[简体中文](README.md)** · [Changelog](CHANGELOG.md)
 
-
-GIF / APNG / still images / MP4 / MOV · any number at once · no Dock icon · bilingual
-
-<img src="Docs/demo.gif" width="306" alt="MemeDesk stickers looping on the desktop">
+<img src="Docs/demo.gif" width="340" alt="MemeDesk stickers looping on the desktop">
 
 </div>
 
 ---
 
-Memes are the universal currency of chat, but they lose their soul the moment you leave the
-conversation. MemeDesk puts them where you actually look — right on the desktop, above the
-wallpaper. Place as many as you like; drag, scale, rotate, bounce or make them chase your
-cursor. They go quiet during full-screen video and rest when the screen locks.
+A wallpaper and a screenshot can only sit there. Memes move.
 
-## Features
+MemeDesk does one thing: pins the memes you've collected onto your desktop and loops them.
+GIF, APNG, video, stills — all fine. Any number at once, and each one can be dragged, scaled,
+rotated, bounced, or made to follow your cursor. It lives in the menu bar only — no Dock icon,
+no wallpaper change, no pop-ups.
 
-- **Any number at once** — every sticker is an independent instance with its own settings; the
-  desk is restored exactly as you left it (Security-Scoped Bookmarks).
-- **GIF / APNG / PNG / JPG / HEIC / WebP / MP4 / MOV / M4V** — format detected from the
-  extension, the UTType and the magic bytes; videos loop with their audio track stripped.
-- **Three layers** — behind desktop icons, above desktop icons (default), or floating above
-  everything.
-- **Six behaviours** — still, breathing, screen bounce, gravity hammock, follow cursor, wander.
-- **Per-instance controls** — size, opacity, playback speed, rotation, mirroring, click-through,
-  lock, duplicate, remove — all from the right-click menu.
-- **Low footprint** — oversized images are downsampled before decoding (adjustable threshold);
-  playback pauses automatically when occluded, on battery, behind a full-screen app or when
-  the screen is locked.
-- **Menu bar only** — an `LSUIElement` app; nothing in the Dock or the App Switcher.
-- **Self-updating** — a built-in updater reads GitHub Releases, can check and install on its own
-  or on demand, and replaces the app **in place**, leaving your desk untouched.
-- **Bilingual UI** — English and Simplified Chinese; follows the system by default.
-- **`memedesk://` URL scheme** — script it, bind it to a hotkey, drive it from Raycast or Alfred.
-- **Six bundled samples** — the sticker library ships with ready-made examples, one click to place.
+The one time it goes quiet on its own is when you open a full-screen video.
 
-## Quick start
+## What it does
 
-Grab the latest `MemeDesk-x.y.z.dmg` from [Releases](../../releases), open it and drag MemeDesk
-into Applications.
+- As many as you like, each with its own settings, and they come back next launch
+- GIF, APNG, PNG, JPG, HEIC, WebP, MP4, MOV, M4V — drop a file in
+- Three layers: under the desktop icons, on the desktop, or above every window
+- Six behaviours: still, breathing, bouncing off the edges, falling to the bottom, following the cursor, wandering
+- Right-click for size, opacity, speed, rotation, mirroring, click-through, lock
+- Snaps to screen edges, so one can't get lost off-screen
+- English and Simplified Chinese, following the system by default
+- Six sample stickers included — one click in the library
 
-> The build is ad-hoc signed. If Gatekeeper complains on first launch, right-click the app and
-> choose **Open**.
+## Install
 
-Build it yourself (needs the **full Xcode**; the Command Line Tools alone cannot compile
-SwiftUI because they ship without its macro plugin):
+Grab `MemeDesk-*.dmg` from [Releases](../../releases/latest), open it, and drag the app into
+Applications.
 
-```bash
-xcode-select --install          # skip if already installed
-./Scripts/build.sh              # → dist/MemeDesk.app
-open dist/MemeDesk.app
-```
+> [!NOTE]
+> The app is ad-hoc signed, so Gatekeeper stops it the first time. Right-click the icon and
+> choose Open; after that it launches normally.
 
-Run `./Scripts/make_dmg.sh` for a distributable disk image, or generate a full Xcode project:
-
-```bash
-brew install xcodegen
-xcodegen -s Xcode/project.yml   # → MemeDesk.xcodeproj
-open MemeDesk.xcodeproj
-```
+The release is Apple silicon only. On an Intel Mac, build it yourself — see
+[below](#build-from-source).
 
 ## Usage
 
-| Action | Effect |
-| --- | --- |
-| Click the menu bar icon | Control panel: add, library, settings, bulk hide / pause |
-| Drag a sticker | Move it (snaps to screen edges so it never gets lost) |
-| `Option` + drag | Resize proportionally |
-| Scroll wheel | Fine-tune size |
-| Right-click | Size / opacity / speed / rotation / layer / behaviour / mirror / click-through / lock / duplicate / remove |
-| Double-click | Pause or resume that one instance |
-| Drop files on the library window | Place them on the desktop |
-| `⌘ ,` | Open Settings |
+Click the face in the menu bar. The panel gives you add, library and settings, plus
+hide all / pause / clear desktop.
 
-The six buttons in the menu-bar panel: **Pause / Resume**, **Library**, **Settings**,
-**Hide all / Show all**, **Clear desk**, **Quit**.
+### Mouse and keyboard
 
-### URL scheme
+- **Drag** — move it. Snaps to screen edges
+- <kbd>⌥</kbd> + drag — scale proportionally
+- **Scroll** — nudge the size
+- **Double-click** — pause just that one
+- **Right-click** — size, opacity, speed, rotation, layer, behaviour, mirror, click-through, lock, duplicate, remove
+- <kbd>⌘</kbd> <kbd>,</kbd> — open Settings
+
+<details>
+<summary>Control it with a URL scheme (Raycast, Alfred, Shortcuts)</summary>
 
 ```bash
-open "memedesk://add?file=/Users/me/cat.gif"   # place a file
-open "memedesk://hide"                          # hide everything
-open "memedesk://show"                          # show everything
-open "memedesk://pause"                         # pause playback
-open "memedesk://resume"                        # resume playback
-open "memedesk://clear"                         # clear the desk
+open "memedesk://add?file=/Users/me/cat.gif"
+open "memedesk://hide"    # hide everything
+open "memedesk://show"    # show everything
+open "memedesk://pause"   # pause playback
+open "memedesk://resume"  # resume playback
+open "memedesk://clear"   # clear the desk
 ```
 
-### Three layers
-
-- **Behind desktop icons** — sandwiched between wallpaper and Finder icons, the most native
-  look. Note that macOS swallows mouse events below the normal window level, so interaction is
-  unavailable in this mode.
-- **Above desktop icons** (default) — covers desktop icons, sits under every app window.
-- **Floating above everything** — covers even full-screen video.
+</details>
 
 ## Updates
 
-Settings → Updates:
+Two switches in Settings: check automatically (on by default), and install automatically
+(off by default, because it restarts the app).
 
-- **Check for updates automatically** (on by default) — once shortly after launch, then daily.
-- **Download and install updates automatically** (off by default — it restarts the app, so that
-  call is yours).
-- **Check Now** for a one-off manual check.
-- The settings button in the menu bar panel grows an orange dot when a version is waiting.
+When a new version is out, a small orange dot appears on the settings button in the panel.
 
-An update is **verified before anything is installed**: a SHA-256 checksum always, and an Ed25519
-signature too once a public key is configured in `Info.plist`. With a key configured, a missing
-signature is a hard failure rather than a quiet fall back to the checksum alone.
+Updating replaces the app bundle in place. Your desk layout, sticker paths and settings live in
+`~/Library/Application Support/MemeDesk/`, outside the bundle, so nothing is lost.
 
-The app then replaces itself in place. Your desk layout, sticker paths and settings live in
-`~/Library/Application Support/MemeDesk/`, outside the app bundle, so they are untouched — the
-app relaunches and your desk comes back exactly as it was.
+Archives are verified before install: SHA-256 always, plus Ed25519 if a public key is configured.
+A missing signature is refused outright rather than falling back to the checksum alone.
 
-**About the network**: the updater is the only thing in MemeDesk that talks to the internet. It
-only reaches `api.github.com` and GitHub's release files, and sends nothing about you. Turn off
-automatic checking and it stays silent until you press the button yourself.
+Checking for updates is the only thing in this app that touches the network: `api.github.com` and
+the release files, with no identifying information. Turn automatic checks off and nothing is
+requested until you press the button.
 
-## How it stays light
+## Build from source
 
-1. **One shared frame clock** — all instances share a single Timer whose rate is negotiated from
-   the fastest client; a 10 fps GIF only drives a ~15 Hz clock, and the Timer is released
-   entirely when nothing is playing.
-2. **Decode at display size** — frames are decoded straight at the displayed size through
-   ImageIO's thumbnail API. An 800×800 GIF in a 200 pt window decodes at 400 px, a quarter of
-   the memory and time of a full-size decode.
-3. **No decoding on the main thread** — a background serial queue decodes and prefetches the
-   next five frames; on a miss the previous frame simply stays on screen. The cache is
-   byte-capped with LRU eviction.
-4. **Knows when to stop** — pauses when fully occluded, behind a full-screen app, on battery or
-   when locked; videos play with the audio pipeline stripped.
+You need the full Xcode. The Command Line Tools alone are not enough — SwiftUI's macro plugin
+ships only with Xcode.
 
-## Design
+```bash
+./Scripts/build.sh        # → dist/MemeDesk.app
+open dist/MemeDesk.app
+```
 
-The menu-bar panel, welcome window, settings and library share one design language: a plain
-white canvas (near-black in dark mode), grey block buttons, and a single brand orange reserved
-for the primary action. Colors, corner radii and type sizes live in
-`Sources/MemeDesk/UI/Design.swift`; the app icon is generated from one 1024 px master by
-`Scripts/make_icon.py` into both `.icns` and `.png`, so Finder, the Dock and the welcome
-window all show the same face.
+`./Scripts/make_dmg.sh` builds a disk image as well. To debug in Xcode:
 
-**The menu bar button is a deliberate exception.** It does not use the app icon there — an
-orange rounded square reads as both heavier and smaller than the system's own glyphs. It is a
-**template image**, its colour left to the system, so it is black on a light menu bar and white
-on a dark one, and it can be switched at any time in Settings, taking effect immediately. There
-are two groups:
+```bash
+brew install xcodegen
+xcodegen -s Xcode/project.yml
+open MemeDesk.xcodeproj
+```
 
-- **Faces** (vector, `Sources/MemeDesk/UI/MenuBarIcon.swift`) — a solid round face with the
-  features knocked out: smile, laughing, wink, surprised, cool, love, sad, angry.
-- **Jimi** (tone-mapped from photographs, `Sources/MemeDesk/UI/MenuBarIconBitmaps.swift`) — four
-  alpha levels, **solid where the photograph is bright (the face) and transparent where it is
-  dark (the features)**: grinning, scratching head. The data is packed at two bits per pixel and
-  embedded in the source, so the app ships no extra image resource;
-  `Scripts/make_menubar_icons.py` regenerates it.
+## About that face
+
+The menu bar icon is not a shrunken app icon; it's a separate set of faces.
+
+The app icon is an orange rounded square — heavy, and small at 22 pt. A menu bar icon should also
+take its colour from the system rather than from the app. So it's a template image: black on a
+light menu bar, white on a dark one.
+
+Two groups: eight drawn as vectors (smile, laughing, wink, surprised, cool, love, sad, angry) and
+two derived from photographs. Switch any time in Settings, applied immediately.
+
+## FAQ
+
+**"Cannot verify the developer" on first launch?**
+Right-click the app and choose Open. That's what ad-hoc signing looks like; the file is fine.
+
+**Will it run on an Intel Mac?**
+Yes, if you build it. The release is arm64 only.
+
+**Where does it keep my stickers?**
+`~/Library/Application Support/MemeDesk/`. Delete that folder to start clean.
+
+**Is it heavy on the CPU?**
+Idle, it's zero. Large GIFs decode at the size of the window rather than at full size, and
+playback pauses when a sticker is fully covered, a full-screen app is in front, the screen is
+locked, or you're on battery.
+
+**A sticker is covering my desktop icons.**
+The default layer sits above them. Change the layer to "under the icons" to slip it between the
+wallpaper and the icons — but macOS swallows mouse events at that level, so it stops being
+draggable.
 
 ## Requirements
 
 - macOS 13 Ventura or later
-- Releases are **arm64-only** (Apple silicon). 0.1.7 briefly shipped a universal binary, but
-  that doubles the download (zip 0.76 MB → 1.34 MB), so 0.1.8 goes back to arm64 only —
-  **Intel Mac users should build from source**, which is architecture-agnostic; see below
-- The full Xcode to build from source (the Command Line Tools alone lack the SwiftUI macro plugin)
+- Apple silicon (build from source on Intel)
 
 ## License
 
